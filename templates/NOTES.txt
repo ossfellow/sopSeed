@@ -1,0 +1,9 @@
+This release is named {{ .Release.Name }}.
+
+{{- if .Values.age.enabled }}
+Selected key type is Age. You could get the public key by running:
+  ~> kubectl get secret gitfence-agepub --namespace={{ .Release.Namespace }} -o jsonpath="{.data.*}" | base64 --decode
+{{- else }}
+Selected key type is GPG. You could get the public key by running:
+  ~> kubectl get secret gitfence-gpgpub --namespace={{ .Release.Namespace }} -o jsonpath="{.data.*}" | base64 --decode
+{{- end }}

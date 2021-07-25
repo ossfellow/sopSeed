@@ -1,0 +1,137 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "gitfence.name" . }}-acct
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "gitfence.labels" . | nindent 4 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ .Release.Name }}"
+  labels:
+    {{- include "gitfence.labels" . | nindent 4 }}
+spec:
+  template:
+    metadata:
+      name: "{{ .Release.Name }}"
+      labels:
+        app.kubernetes.io/name: {{ include "gitfence.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: "OnRootMismatch"
+      serviceAccountName: {{ include "gitfence.name" . }}-acct
+      restartPolicy: Never
+      {{- if .Values.initContainers.enabled }}
+      initContainers:
+        - name: {{ .Chart.Name }}-init
+          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            capabilities:
+              add: ["SYS_ADMIN"]
+          command: ["/usr/bin/timeout"]
+          args: ["-s", "SIGTERM", "{{ include "gitfence.entropySeedingTimeout" . }}", "{{ .Values.global.userHome }}/entropy.sh"]
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: dev-random
+              mountPath: /dev-random
+              readOnly: false
+            - name: dev-urandom
+              mountPath: /dev-urandom
+              readOnly: true
+            - name: dev-zero
+              mountPath: /dev-zero
+              readOnly: true
+            - name: entropy-availble
+              mountPath: /entropy-avail
+              readOnly: true
+            - name: user-home
+              mountPath: {{ .Values.global.userHome }}
+              readOnly: false
+            - name: entropy-script
+              mountPath: {{ .Values.global.userHome }}/entropy.sh
+              subPath: entropy.sh
+              readOnly: true
+        {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: GNUPGHOME
+              value: "{{ .Values.global.userHome }}/.gnupg"
+          securityContext:
+            #runAsNonRoot: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+          command: ["/bin/sh", "{{ .Values.global.userHome }}/gitfence.sh"]
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: user-home
+              mountPath: {{ .Values.global.userHome }}
+              readOnly: false
+            - name: crypto-script
+              mountPath: {{ .Values.global.userHome }}/gitfence.sh
+              subPath: gitfence.sh
+              readOnly: true
+            {{- if not .Values.age.enabled }}
+            - name: gpg-conf
+              mountPath: {{ .Values.global.userHome }}/gpg.conf
+              subPath: gpg.conf
+              readOnly: true
+            - name: gpg-batch
+              mountPath: {{ .Values.global.userHome }}/gpg.batch
+              subPath: gpg.batch
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: user-home
+          emptyDir: {}
+        {{- if .Values.initContainers.enabled }}
+        - name: dev-random
+          hostPath:
+            path: /dev/random
+            type: CharDevice
+        - name: dev-urandom
+          hostPath:
+            path: /dev/urandom
+            type: CharDevice
+        - name: dev-zero
+          hostPath:
+            path: /dev/zero
+            type: CharDevice
+        - name: entropy-availble
+          hostPath:
+            path: /proc/sys/kernel/random/entropy_avail
+            type: File
+        - name: entropy-script
+          configMap:
+            name: {{ include "gitfence.name" . }}-entropy-script
+            defaultMode: 0755
+        {{- end }}
+        - name: crypto-script
+          configMap:
+            name: {{ include "gitfence.name" . }}-crypto-script
+            defaultMode: 0755
+        {{- if not .Values.age.enabled }}
+        - name: gpg-conf
+          configMap:
+            name: {{ include "gitfence.name" . }}-gpg-conf
+            defaultMode: 0640
+        - name: gpg-batch
+          configMap:
+            name: {{ include "gitfence.name" . }}-gpg-batch
+            defaultMode: 0640
+        {{- end }}
