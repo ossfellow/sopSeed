@@ -4,8 +4,11 @@ on:
   schedule:
     - cron: '11 1 1 * *'
   push:
+    branches:
+      - main
     paths:
       - 'oci/gitfence/Dockerfile'
+  workflow_dispatch:
 
 jobs:
   build:
