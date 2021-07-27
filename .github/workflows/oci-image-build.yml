@@ -26,9 +26,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2.3.4
+
       - name: Get current date
         id: date
         run: echo "::set-output name=date::$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
       - name: Docker Metadata
         id: meta
         uses: docker/metadata-action@v3.4.1
@@ -38,18 +40,22 @@ jobs:
             type=schedule,pattern={{date 'YYYYMMDD'}}
             type=semver,pattern={{version}}
             type=sha
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1.2.0
+
       - name: Set up Docker BuildX
         uses: docker/setup-buildx-action@v1.5.1
+
       - name: Login to GitHub Container Registry
         if: ${{ matrix.image.publish-on-ghcr }}
-        uses: docker/login-action@1.10.0
+        uses: docker/login-action@v1.10.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
           logout: true
+
       - name: Login to DockerHub
         if: ${{ matrix.image.publish-on-dockerhub }}
         uses: docker/login-action@v1.10.0
@@ -58,6 +64,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
           logout: true
+
       - name: Build and push
         uses: docker/build-push-action@v2.6.1
         with:
@@ -71,6 +78,7 @@ jobs:
             VCS_REF=${GITHUB_SHA::8}
             BUILD_DATE=${{ steps.date.outputs.date }}
           push: true
+
       - name: Update repo description
         if: ${{ matrix.image.publish-on-dockerhub }}
         uses: peter-evans/dockerhub-description@v2
