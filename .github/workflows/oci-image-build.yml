@@ -22,7 +22,7 @@ jobs:
             path: oci/gitfence
             platforms: linux/amd64,linux/386,linux/arm/v6,linux/arm/v7,linux/arm64/v8
             publish-on-ghcr: true
-            publish-on-dickerhub: false
+            publish-on-dockerhub: false
     steps:
       - name: Checkout
         uses: actions/checkout@v2.3.4
@@ -31,11 +31,21 @@ jobs:
         id: date
         run: echo "::set-output name=date::$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
+      - name: Tagged Images
+        run: |
+          if ${{ matrix.image.publish-on-ghcr }} && ! ${{ matrix.image.publish-on-dockerhub }}; then
+            echo "IMAGES=ghcr.io/${{ matrix.image.name }}" >> $GITHUB_ENV
+          elif ! ${{ matrix.image.publish-on-ghcr }} && ${{ matrix.image.publish-on-dockerhub }}; then
+            echo "IMAGES=${{ matrix.image.name }}" >> $GITHUB_ENV
+          elif ${{ matrix.image.publish-on-ghcr }} && ${{ matrix.image.publish-on-dockerhub }}; then
+            echo "IMAGES=${{ matrix.image.name }},ghcr.io/${{ matrix.image.name }}" >> $GITHUB_ENV
+          fi
+
       - name: Docker Metadata
         id: meta
         uses: docker/metadata-action@v3.4.1
         with:
-          images: ${{ matrix.image.name }},ghcr.io/${{ matrix.image.name }}
+          images: env.IMAGES
           tags: |
             type=schedule,pattern={{date 'YYYYMMDD'}}
             type=semver,pattern={{version}}
