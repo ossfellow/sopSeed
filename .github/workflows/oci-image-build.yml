@@ -78,7 +78,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v2.6.1
         with:
-          context: ${{ matrix.image.path }}
+          context: ${{ matrix.image.context }}
           platforms: ${{ matrix.image.platforms }}
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
