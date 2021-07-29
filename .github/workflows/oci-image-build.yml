@@ -21,8 +21,8 @@ jobs:
           - name: masoudbahar/gitfence
             path: oci/gitfence
             platforms: linux/amd64,linux/386,linux/arm/v6,linux/arm/v7,linux/arm64/v8
-            publish-on-ghcr: true
-            publish-on-dockerhub: false
+            publish-on-ghcr: false
+            publish-on-dockerhub: true
     steps:
       - name: Checkout
         uses: actions/checkout@v2.3.4
