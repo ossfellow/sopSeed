@@ -58,7 +58,7 @@ jobs:
 
       - name: Set env ghcr.io and docker.io tagged images
         if: ${{ matrix.image.publish-on-ghcr && matrix.image.publish-on-dockerhub }}
-        run: echo "IMAGES1=$(echo $IMAGE_NAME)" >> $GITHUB_ENV
+        run: echo "IMAGES1=$IMAGE_NAME" >> $GITHUB_ENV
         env:
           IMAGE_NAME: ${{ matrix.image.name }},ghcr.io/${{ matrix.image.name }}
 
