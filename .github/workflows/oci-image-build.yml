@@ -37,11 +37,11 @@ jobs:
       - name: Set Target OCI Registry
         run: |
           if ${{ matrix.image.publish-on-ghcr }} && ! ${{ matrix.image.publish-on-dockerhub }}; then
-            echo "::set-env name=IMAGES::ghcr.io/${{ matrix.image.name }}"
+            echo "IMAGES=ghcr.io/${{ matrix.image.name }}" >> $GITHUB_ENV
           elif ! ${{ matrix.image.publish-on-ghcr }} && ${{ matrix.image.publish-on-dockerhub }}; then
-            echo "::set-env name=IMAGES::${{ matrix.image.name }}"
+            echo "IMAGES=${{ matrix.image.name }}" >> $GITHUB_ENV
           elif ${{ matrix.image.publish-on-ghcr }} && ${{ matrix.image.publish-on-dockerhub }}; then
-            echo "::set-env name=IMAGES::${{ matrix.image.name }},ghcr.io/${{ matrix.image.name }}"
+            echo "IMAGES=${{ matrix.image.name }},ghcr.io/${{ matrix.image.name }}" >> $GITHUB_ENV
           fi
 
       - name: Docker Metadata
