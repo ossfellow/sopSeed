@@ -11,7 +11,7 @@ ARG BUILD_DATE
 LABEL org.opencontainers.image.title="GitFence" \
     org.opencontainers.image.authors="masoudbahar@gmail.com" \
     org.opencontainers.image.description="gitfence generates compact, strong, GPG (ed25519/cv25519), or Age (X25519) keys, for GitOps, and other use cases." \
-    org.opencontainers.image.documentation="${VCS_URL}/README.md" \
+    org.opencontainers.image.documentation="${VCS_URL}/oci/gitfence/README.md" \
     org.opencontainers.image.url="${VCS_URL}" \
     org.opencontainers.image.source="${VCS_URL}/oci/gitfence/Dockerfile" \
     org.opencontainers.image.licenses="${LICENSE}" \
