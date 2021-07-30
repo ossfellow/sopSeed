@@ -27,11 +27,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2.3.4
 
-      - name: Set Date and Image Version
+      - name: Set Custom Variables
         id: custom
         run: |
           echo "::set-output name=date::$(date -u +'%Y-%m-%d %H:%M:%S')"
           echo "::set-output name=version::$(date -u +'%Y%m%d.%H%M%S')"
+          echo "::set-output name=short_sha::${GITHUB_SHA::8}"
 
       - name: Set Target OCI Registry
         run: |
@@ -88,7 +89,7 @@ jobs:
             VERSION=${{ steps.custom.outputs.version }}
             LICENSE=${{ github.event.repository.license.spdx_id }}
             VCS_URL=${{ github.event.repository.html_url }}
-            VCS_REF=${{ env.GITHUB_SHA::8 }}
+            VCS_REF=${{ steps.custom.outputs.short_sha }}
             BUILD_DATE=${{ steps.custom.outputs.date }}
           push: true
 
