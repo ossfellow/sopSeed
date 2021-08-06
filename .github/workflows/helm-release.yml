@@ -6,6 +6,11 @@ on:
       - main
     paths-ignore:
       - 'oci/gitfence/**'
+      - '.github/**'
+  pull_request:
+    paths-ignore:
+      - 'oci/gitfence/**'
+      - '.github/**'
   workflow_dispatch:
 
 jobs:
@@ -50,6 +55,7 @@ jobs:
   release:
     needs: lint-test
     runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'pull_request' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2

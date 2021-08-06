@@ -8,12 +8,18 @@ on:
       - main
     paths:
       - 'oci/gitfence/Dockerfile'
+  pull_request:
+    paths:
+      - 'oci/gitfence/Dockerfile'
   workflow_dispatch:
 
 jobs:
   build:
     name: "Build ${{ matrix.image.name }}"
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -91,10 +97,30 @@ jobs:
             VCS_URL=${{ github.event.repository.html_url }}
             VCS_REF=${{ steps.custom.outputs.short_sha }}
             BUILD_DATE=${{ steps.custom.outputs.date }}
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Install sigstore/cosign
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: sigstore/cosign-installer@main
+
+      - name: Sign the Image with sigstore/cosign
+        if: ${{ github.event_name != 'pull_request' }}
+        env:
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSPHRASE }}
+          COSIGN_EXPERIMENTAL: 0
+        run: |
+          echo "${{ secrets.COSIGN_KEY }}" > /tmp/cosign.key
+          if ${{ matrix.image.publish-on-ghcr }}; then
+            cosign sign -key /tmp/cosign.key ghcr.io/${{ matrix.image.name }}
+          fi
+          if ${{ matrix.image.publish-on-dockerhub }}; then
+            cosign sign -key /tmp/cosign.key ${{ matrix.image.name }}
+          fi
 
       - name: Update DockerHub Repository Description
-        if: ${{ matrix.image.publish-on-dockerhub }}
+        if: ${{ matrix.image.publish-on-dockerhub && github.event_name != 'pull_request' }}
         uses: peter-evans/dockerhub-description@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}

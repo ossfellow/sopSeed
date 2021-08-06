@@ -11,7 +11,7 @@ It creates either a [GPG](https://gnupg.org) key ([ed25519](https://en.wikipedia
 
 While the Helm chart, or the OCI image, could be used for a variety of use cases, GitFence is primarily built for improving the security and simplicity of encryption key setup, in GitOps pipelines such as [Flux v2](https://fluxcd.io/docs/), for [managing Kubernetes secrets with Mozilla SOPS](https://toolkit.fluxcd.io/guides/mozilla-sops/).
 
-As a security tool, and to promote security best practices, the [Aqua Security's trivy](https://github.com/aquasecurity/trivy) image vulnerability scanner is incorporated into the [Dockerfile](https://github.com/masoudbahar/gitfence/blob/main/oci/gitfence/README.md) image build instructions, which would fail the build, if the OS or any of the utilized packages have known vulnerabilities.
+As a security tool, and to promote security best practices, GitFence guarantees clean and safe OCI images, by incorporating the [Aqua Security's trivy](https://github.com/aquasecurity/trivy) image vulnerability scanner directly into its [Dockerfile](https://github.com/masoudbahar/gitfence/blob/main/oci/gitfence/README.md) build instructions. It also guarantees their authenticity, by signing the resultant OCI images with a verifiable [sigstore/cosign](https://github.com/sigstore/cosign) key.
 
 GitFence also comes with multi-tenancy, and multi-arch support.
 
