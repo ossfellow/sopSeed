@@ -29,7 +29,7 @@ RUN addgroup --gid ${SOC_GROUP_ID} secops && \
     chmod +x /usr/local/bin/kubectl && \
     AGE_VERSION=$(wget -q --header="Accept: application/vnd.github.v3+json" https://api.github.com/repos/FiloSottile/age/tags -O - | jq -r '. | first | .name') && \
     if ${AGE_ARCH}; then wget https://github.com/FiloSottile/age/releases/download/${AGE_VERSION}/age-${AGE_VERSION}-linux-${ARCH}.tar.gz -O - | tar -xz --strip 1 -C /usr/local/bin/ && \
-    chmod +x /usr/local/bin/age /usr/local/bin/age-keygen; fi \
+    chmod +x /usr/local/bin/age /usr/local/bin/age-keygen; fi && \
     apk del jq
 
 # Scan the image filesystem for vulnerabilities
