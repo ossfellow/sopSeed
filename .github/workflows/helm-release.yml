@@ -50,7 +50,7 @@ jobs:
           CT_TARGET_BRANCH: main
           #CT_CHART_DIRS: "./"
           CT_CHARTS: ./
-          CT_CHART_YAML_SCHEMA: "templates/ct-lint/--chart_schema.yaml"
+          CT_CHART_YAML_SCHEMA: "templates/ct-lint/chart_schema.yaml"
           CT_LINT_CONF: "templates/ct-lint/lintconf.yaml"
         run: ct lint
 
