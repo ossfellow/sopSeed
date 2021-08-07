@@ -64,6 +64,7 @@ jobs:
           CT_CHART_DIRS: "./"
           CT_CHARTS: ./
           CT_NAMESPACE: flux-system
+          CT_HELM_EXTRA_ARGS: "--create-namespace"
         run: ct install
 
   release:
