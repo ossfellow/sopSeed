@@ -36,21 +36,33 @@ jobs:
 
       - name: Run chart-testing (list-changed)
         id: list-changed
+        env:
+          CT_TARGET_BRANCH: main
+          CT_CHART_DIRS: "./"
         run: |
-          changed=$(ct list-changed --target-branch main)
+          changed=$(ct list-changed)
           if [[ -n "$changed" ]]; then
             echo "::set-output name=changed::true"
           fi
 
       - name: Run chart-testing (lint)
-        run: ct lint --target-branch main --all --chart-dirs ./
+        env:
+          CT_TARGET_BRANCH: main
+          CT_CHART_DIRS: "./"
+          CT_CHART_YAML_SCHEMA: "templates/ct-lint/--chart_schema.yaml"
+          CT_LINT_CONF: "templates/ct-lint/lintconf.yaml"
+        run: ct lint --all
 
       - name: Create kind cluster
         uses: helm/kind-action@v1.2.0
         if: steps.list-changed.outputs.changed == 'true'
 
       - name: Run chart-testing (install)
-        run: ct install --target-branch main --all --chart-dirs ./
+        env:
+          CT_TARGET_BRANCH: main
+          CT_CHART_DIRS: "./"
+          CT_NAMESPACE: flux-system
+        run: ct install --all
 
   release:
     needs: lint-test
@@ -81,4 +93,4 @@ jobs:
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         with:
-          charts_dir: ./
+          charts_dir: "./"
