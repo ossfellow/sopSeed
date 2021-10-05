@@ -1,0 +1,24 @@
+name: Close stale issues and PRs
+on:
+  schedule:
+    - cron: '11 1 * * MON'
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/stale@v4
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          stale-pr-message: 'This pull request has been automatically marked as stale because it has been inactive for 30 days. It will be closed in 15 days if no further activity occurs. Thank you for your contributions.'
+          stale-issue-message: 'This issue has been automatically marked as stale because it has been inactive for 30 days. It will be closed in 15 days if no further activity occurs. Thank you for your contributions.'
+          close-pr-message: 'This pull request has been automatically closed due to inactivity. If you think it should not be closed, please reopen the pull request, or file a new PR with the relevant details.'
+          close-issue-message: 'This issue has been closed due to inactivity. If you think it should not be closed, please reopen the issue or file a new issue with the relevant details.'
+          days-before-stale: 30
+          days-before-close: 15
+          exempt-issue-labels: 'security,bug'
+          exempt-pr-labels: 'security,bug'
+          operations-per-run: 50
