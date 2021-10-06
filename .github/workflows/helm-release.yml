@@ -102,7 +102,8 @@ jobs:
         uses: helm/chart-releaser-action@v1.2.1
         env:
           CR_OWNER: "$GITHUB_ACTOR"
-          CR_CHARTS_REPO: "$GITHUB_REPOSITORY"
+          #CR_CHARTS_REPO: "$GITHUB_REPOSITORY"
+          CR_CHARTS_REPO: "https://$GITHUB_ACTOR.github.io/gitfence"
           CR_GIT_REPO: gitfence
           #CR_PACKAGE_PATH: ".cr-release-packages"
           #CR_INDEX_PATH: ".cr-index/index.yaml"
