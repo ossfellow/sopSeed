@@ -1,7 +1,7 @@
 apiVersion: v2
 name: gitfence
 description: gitfence generates compact, strong, GPG (ed25519/cv25519), or Age (X25519) keys, for GitOps, and stores their private and public keys as Kubernetes secrets
-version: 0.1.1
+version: 0.1.0
 
 type: application
 appVersion: "0.1.0"
