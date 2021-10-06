@@ -1,4 +1,4 @@
-name: Release GitFence Helm Chart
+name: Test and Release GitFence Helm Chart
 
 on:
   push:
@@ -28,7 +28,7 @@ jobs:
       - name: Set up Helm
         uses: azure/setup-helm@v1
         with:
-          version: v3
+          version: v3.7.0
 
       - uses: actions/setup-python@v2
         with:
@@ -96,7 +96,7 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v1
         with:
-          version: v3
+          version: v3.7.0
 
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@v1.2.1
