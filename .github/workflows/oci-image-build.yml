@@ -122,7 +122,7 @@ jobs:
 
       - name: Update DockerHub Repository Description
         if: ${{ matrix.image.publish-on-dockerhub && github.event_name != 'pull_request' }}
-        uses: peter-evans/dockerhub-description@v2
+        uses: peter-evans/dockerhub-description@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
