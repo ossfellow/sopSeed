@@ -99,7 +99,7 @@ jobs:
           version: v3.7.0
 
       - name: Run chart-releaser
-        uses: helm/chart-releaser-action@v1.2.1
+        uses: helm/chart-releaser-action@v1.4.0
         env:
           CR_OWNER: "$GITHUB_ACTOR"
           #CR_CHARTS_REPO: "$GITHUB_REPOSITORY"
