@@ -87,7 +87,7 @@ jobs:
           logout: true
 
       - name: Build and Push
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v3
         with:
           context: ${{ matrix.image.context }}
           platforms: ${{ matrix.image.platforms }}
