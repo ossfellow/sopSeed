@@ -26,7 +26,8 @@ jobs:
         image:
           - name: masoudbahar/gitfence
             context: oci/gitfence
-            platforms: linux/amd64,linux/386,linux/arm/v6,linux/arm/v7,linux/arm64/v8
+#             platforms: linux/amd64,linux/386,linux/arm/v6,linux/arm/v7,linux/arm64/v8
+            platforms: linux/amd64,linux/arm64/v8
             publish-on-ghcr: true
             publish-on-dockerhub: false
             sign-with-cosign: false
