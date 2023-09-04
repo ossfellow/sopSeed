@@ -33,7 +33,7 @@ jobs:
             sign-with-cosign: false
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set Custom Variables
         id: custom
