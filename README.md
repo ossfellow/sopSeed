@@ -1,17 +1,17 @@
 # GitFence
 
-[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/masoudbahar/gitfence?style=plastic)](https://github.com/masoudbahar/gitfence/releases) [![GitHub](https://img.shields.io/github/license/masoudbahar/gitfence?style=plastic)](https://github.com/masoudbahar/gitfence/blob/main/LICENSE)
-[![Open in Visual Studio Code](https://open.vscode.dev/badges/open-in-vscode.svg)](https://open.vscode.dev/masoudbahar/gitfence)
+[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/ossfellow/gitfence?style=plastic)](https://github.com/ossfellow/gitfence/releases) [![GitHub](https://img.shields.io/github/license/ossfellow/gitfence?style=plastic)](https://github.com/ossfellow/gitfence/blob/main/LICENSE)
+[![Open in Visual Studio Code](https://open.vscode.dev/badges/open-in-vscode.svg)](https://open.vscode.dev/ossfellow/gitfence)
 
 If [the core idea of GitOps](https://www.gitops.tech/#what-is-gitops) is declarative description of the desired configuration of infrastructure and applications, then wouldn't it make sense to declaratively generate and store keys, used for encryption of sensitive GitOps data?
 
 GitFence does exactly that, in a secure, and minimalistic way.
 
-It creates either a [GPG](https://gnupg.org) key ([ed25519](https://en.wikipedia.org/wiki/EdDSA#Ed25519)/[cv25519](https://en.wikipedia.org/wiki/Curve25519)), or an [Age](https://github.com/FiloSottile/age) key ([X25519](https://en.wikipedia.org/wiki/Curve25519)), inside a Kubernetes cluster, and stores the private and public keys, as [Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/). The kubectl command for retrieving the public key is printed to console, when the Helm chart is installed (the retrieval template is in [NOTES.txt](https://github.com/masoudbahar/gitfence/blob/main/templates/NOTES.txt)).
+It creates either a [GPG](https://gnupg.org) key ([ed25519](https://en.wikipedia.org/wiki/EdDSA#Ed25519)/[cv25519](https://en.wikipedia.org/wiki/Curve25519)), or an [Age](https://github.com/FiloSottile/age) key ([X25519](https://en.wikipedia.org/wiki/Curve25519)), inside a Kubernetes cluster, and stores the private and public keys, as [Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/). The kubectl command for retrieving the public key is printed to console, when the Helm chart is installed (the retrieval template is in [NOTES.txt](https://github.com/ossfellow/gitfence/blob/main/templates/NOTES.txt)).
 
 While the Helm chart, or the OCI image, could be used for a variety of use cases, GitFence is primarily built for improving the security and simplicity of encryption key setup, in GitOps pipelines such as [Flux v2](https://fluxcd.io/docs/), for [managing Kubernetes secrets with Mozilla SOPS](https://toolkit.fluxcd.io/guides/mozilla-sops/).
 
-As a security tool, and to promote security best practices, GitFence guarantees clean and safe OCI images, by incorporating the [Aqua Security's trivy](https://github.com/aquasecurity/trivy) image vulnerability scanner directly into its [Dockerfile](https://github.com/masoudbahar/gitfence/blob/main/oci/gitfence/README.md) build instructions. It also guarantees their authenticity, by signing the resultant OCI images with a verifiable [sigstore/cosign](https://github.com/sigstore/cosign) key.
+As a security tool, and to promote security best practices, GitFence guarantees clean and safe OCI images, by incorporating the [Aqua Security's trivy](https://github.com/aquasecurity/trivy) image vulnerability scanner directly into its [Dockerfile](https://github.com/ossfellow/gitfence/blob/main/oci/gitfence/README.md) build instructions. It also guarantees their authenticity, by signing the resultant OCI images with a verifiable [sigstore/cosign](https://github.com/sigstore/cosign) key.
 
 GitFence also comes with multi-tenancy, and multi-arch support.
 
@@ -28,14 +28,14 @@ This chart initiates a [Kubernetes job](https://kubernetes.io/docs/concepts/work
 
 - Kubernetes 1.19+
 - Helm 3+
-- Privileged execution for adding entropy bits, using rngd daemon (if Init Container is [enabled](https://github.com/masoudbahar/gitfence/blob/main/values.yaml))
+- Privileged execution for adding entropy bits, using rngd daemon (if Init Container is [enabled](https://github.com/ossfellow/gitfence/blob/main/values.yaml))
 
 ## Installing the Chart
 
 To install the chart with the release name `flux-sops`:
 
 ```console
-~> helm repo add gitfence https://github.com/masoudbahar/gitfence
+~> helm repo add gitfence https://github.com/ossfellow/gitfence
 ~> helm install flux-sops gitfence --namespace flux-system --create-namespace --atomic
 ```
 
@@ -60,7 +60,7 @@ The following table lists the configurable parameters of the gitfence chart and 
 | ---------------------------------- | ------------------------------------------------------------ | -------------------------------- |
 | `global.home`                      | Home directory of the default user; will set GNUPGHOME       | `/home/secops`                   |
 | `image.registry`                   | gitfence image registry                                      | `ghcr.io`                      |
-| `image.repository`                 | gitfence image name                                          | `masoudbahar/gitfence`           |
+| `image.repository`                 | gitfence image name                                          | `ossfellow/gitfence`           |
 | `image.pullPolicy`                 | gitfence image pull policy                                   | `IfNotPresent`                   |
 | `image.PullSecrets`                | Image registry secret names as an array                      | `[]`                             |
 | `nameOverride`                     | Partially overrides the name of the chart                    | `""`                             |
@@ -92,4 +92,4 @@ Alternatively, provide a YAML file that specifies the values for the parameters 
 ~> helm install flux-sops -f gpg-values.yaml gitfence --namespace flux-system --create-namespace --atomic
 ```
 
-> **Tip**: You can use the default [values.yaml](https://github.com/masoudbahar/gitfence/blob/main/values.yaml)
+> **Tip**: You can use the default [values.yaml](https://github.com/ossfellow/gitfence/blob/main/values.yaml)

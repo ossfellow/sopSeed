@@ -104,6 +104,7 @@ jobs:
           CR_OWNER: "$GITHUB_ACTOR"
           #CR_CHARTS_REPO: "$GITHUB_REPOSITORY"
           CR_CHARTS_REPO: "https://$GITHUB_ACTOR.github.io/gitfence"
+          # CR_CHARTS_REPO: "https://raw.githubusercontent.com/$GITHUB_ACTOR/gitfence/gh-pages/"
           CR_GIT_REPO: gitfence
           #CR_PACKAGE_PATH: ".cr-release-packages"
           #CR_INDEX_PATH: ".cr-index/index.yaml"

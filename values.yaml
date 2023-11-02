@@ -6,7 +6,7 @@ global:
 
 image:
   registry: ghcr.io
-  repository: masoudbahar/gitfence
+  repository: ossfellow/gitfence
   pullPolicy: IfNotPresent
   pullSecrets: []
   # Overrides the image tag whose default is the chart appVersion

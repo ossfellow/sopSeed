@@ -1,4 +1,4 @@
-# GitFence OCI Image ([Dockerfile](https://github.com/masoudbahar/gitfence/blob/main/oci/gitfence/Dockerfile))
+# GitFence OCI Image ([Dockerfile](https://github.com/ossfellow/gitfence/blob/main/oci/gitfence/Dockerfile))
 
 The GitFence OCI image attempts to achieve the following objectives:
 
@@ -6,10 +6,10 @@ The GitFence OCI image attempts to achieve the following objectives:
 - Ensure clean builds, by adding [Aqua Security's trivy](https://github.com/aquasecurity/trivy) image vulnerability scanner, which would fail the build, if the OS or any of the utilized packages have known vulnerabilities.
 - Set sane defaults, making it usable as an standalone container, or for automation, such as this Helm chart.
 
-The GitFence OCI images are signed by a [sigstore/cosign](https://github.com/sigstore/cosign) key, and the audit trail is stored in its public transparency log. The [public key](https://github.com/masoudbahar/gitfence/blob/main/cosign.pub) could be used to verify the authenticity of the image:
+The GitFence OCI images are signed by a [sigstore/cosign](https://github.com/sigstore/cosign) key, and the audit trail is stored in its public transparency log. The [public key](https://github.com/ossfellow/gitfence/blob/main/cosign.pub) could be used to verify the authenticity of the image:
 
 ```console
-cosign verify -key /path/to/cosign.pub ghcr.io/masoudbahar/gitfence
+cosign verify -key /path/to/cosign.pub ghcr.io/ossfellow/gitfence
 ```
 
 ## Interactive Usage Examples
@@ -19,21 +19,21 @@ The GitFence OCI image is published to [GitHub](https://github.com/features/pack
 - Show GPG version
 
 ```console
-docker run --rm -it masoudbahar/gitfence gpg --version
+docker run --rm -it ossfellow/gitfence gpg --version
 ```
 
 - List GPG keys
 
 ```console
-docker run --rm -it -v /local/gpg/keys/store:/home/secops/.gnupg masoudbahar/gitfence gpg --list-keys
-docker run --rm -it -v /local/gpg/keys/store:/home/secops/.gnupg masoudbahar/gitfence gpg --list-secret-keys
+docker run --rm -it -v /local/gpg/keys/store:/home/secops/.gnupg ossfellow/gitfence gpg --list-keys
+docker run --rm -it -v /local/gpg/keys/store:/home/secops/.gnupg ossfellow/gitfence gpg --list-secret-keys
 ```
 
 - Generate a GPG key (ed25519/cv25519)<sup>1<sup>
 
 ```console
-docker run --rm -it -v /local/gpg/keys/store:/home/secops/.gnupg masoudbahar/gitfence gpg --quick-gen-key --batch --passphrase ""  "masoudbahar (test key)" future-default default never
-docker run --rm -it -v /local/gpg/keys/store:/home/secops/.gnupg masoudbahar/gitfence gpg --full-gen-key --expert
+docker run --rm -it -v /local/gpg/keys/store:/home/secops/.gnupg ossfellow/gitfence gpg --quick-gen-key --batch --passphrase ""  "masoudbahar (test key)" future-default default never
+docker run --rm -it -v /local/gpg/keys/store:/home/secops/.gnupg ossfellow/gitfence gpg --full-gen-key --expert
 ```
 
 **1**: ECDSA and RSA keys are supported too, but ECDH (ed25519/cv25519) is preferred.
@@ -41,7 +41,7 @@ docker run --rm -it -v /local/gpg/keys/store:/home/secops/.gnupg masoudbahar/git
 - Get GPG key fingerprint
 
 ```console
-KEY_FP=$(docker run --rm -it -v /local/gpg/keys/store:/home/secops/.gnupg masoudbahar/gitfencegpg --with-colons --fingerprint masoudbahar | grep fpr | cut -d ':' -f 10 | head -1)
+KEY_FP=$(docker run --rm -it -v /local/gpg/keys/store:/home/secops/.gnupg ossfellow/gitfencegpg --with-colons --fingerprint masoudbahar | grep fpr | cut -d ':' -f 10 | head -1)
 ```
 
 - Export GPG public key
@@ -53,11 +53,11 @@ docker run --rm -it -v /local/gpg/keys/store:/home/secops/.gnupg -v $(pwd)/keys:
 - Show Age version
 
 ```console
-docker run --rm -it masoudbahar/gitfence age --version
+docker run --rm -it ossfellow/gitfence age --version
 ```
 
 - Generate an Age key (X25519)
 
 ```console
-docker run --rm -it -v /local/age/keys/store:/home/secops/.age masoudbahar/gitfence age-keygen -o /home/secops/.age/agekey.txt
+docker run --rm -it -v /local/age/keys/store:/home/secops/.age ossfellow/gitfence age-keygen -o /home/secops/.age/agekey.txt
 ```

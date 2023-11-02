@@ -1,0 +1,24 @@
+name: Cleanup Old OCI Images
+
+on:
+  schedule:
+    # Run at 00:00 UTC on the last day of June and December
+    - cron: '0 0 30 6,12 *'
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Run cleanup script
+      run: |
+        USERNAME="ossfellow"
+        REPO="gitfence"
+        TOKEN="${{ secrets.GITHUB_TOKEN }}"
+        PACKAGES=$(curl -s -u ${USERNAME}:${TOKEN} https://api.github.com/user/packages/container/${REPO}/versions)
+        VERSIONS=$(echo ${PACKAGES} | jq -r '.[] | .name + " " + .created_at')
+        TO_DELETE=$(echo "${VERSIONS}" | sort -k2r | tail -n +4 | awk '{print $1}')
+        echo "Delete all OCI images stored in ${REPO} package repository, except the 3 most recent versions"
+        for VERSION in ${TO_DELETE}; do
+          curl -X DELETE -u ${USERNAME}:${TOKEN} https://api.github.com/user/packages/container/${REPO}/versions/${VERSION}
+        done

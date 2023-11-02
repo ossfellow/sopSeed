@@ -1,19 +1,19 @@
 apiVersion: v2
 name: gitfence
 description: gitfence generates compact, strong, GPG (ed25519/cv25519), or Age (X25519) keys, for GitOps, and stores their private and public keys as Kubernetes secrets
-version: 0.1.0
+version: 0.2.0
 
 type: application
-appVersion: "0.1.0"
+appVersion: "0.2.0"
 
-kubeVersion: ">=1.19.0"
+kubeVersion: ">=1.25.0"
 
 maintainers:
   - name: masoudbahar
     email: masoudbahar@gmail.com
     url: https://github.com/masoudbahar
 
-home: https://github.com/masoudbahar/gitfence
+home: https://github.com/ossfellow/gitfence
 sources:
   - https://gnupg.org
   - https://age-encryption.org/v1/
@@ -40,7 +40,7 @@ annotations:
       description: Initial release
       links:
         - name: Github Release
-          url: https://github.com/masoudbahar/gitfence/releases
+          url: https://github.com/ossfellow/gitfence/releases
   artifacthub.io/containsSecurityUpdates: "false"
   artifacthub.io/links: |
     - name: fluxcd

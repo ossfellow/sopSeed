@@ -24,7 +24,7 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - name: masoudbahar/gitfence
+          - name: ossfellow/gitfence
             context: oci/gitfence
 #             platforms: linux/amd64,linux/386,linux/arm/v6,linux/arm/v7,linux/arm64/v8
             platforms: linux/amd64,linux/arm64
@@ -38,9 +38,9 @@ jobs:
       - name: Set Custom Variables
         id: custom
         run: |
-          echo "::set-output name=date::$(date -u +'%Y-%m-%d %H:%M:%S')"
-          echo "::set-output name=version::$(date -u +'%Y%m%d.%H%M%S')"
-          echo "::set-output name=short_sha::${GITHUB_SHA::8}"
+          echo "BUILDX_DATE=$(date -u +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+          echo "BUILD_VERSION=$(date -u +'%Y%m%d.%H%M%S')" >> $GITHUB_ENV
+          echo "SHORT_SHA=${GITHUB_SHA::8}" >> $GITHUB_ENV
 
       - name: Set Target OCI Registry
         run: |
@@ -60,7 +60,7 @@ jobs:
           flavor: |
             latest=true
           tags: |
-            type=raw,enable=true,prefix=v,suffix=,value=${{ steps.custom.outputs.version }}
+            type=raw,enable=true,prefix=v,suffix=,value=${{ env.BUILD_VERSION }}
             type=sha,enable=true,prefix=,suffix=,format=short
 
       - name: Set up QEMU
@@ -94,14 +94,16 @@ jobs:
           platforms: ${{ matrix.image.platforms }}
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
-            VERSION=${{ steps.custom.outputs.version }}
+            VERSION=${{ env.BUILD_VERSION }}
             LICENSE=${{ github.event.repository.license.spdx_id }}
             VCS_URL=${{ github.event.repository.html_url }}
-            VCS_REF=${{ steps.custom.outputs.short_sha }}
-            BUILD_DATE=${{ steps.custom.outputs.date }}
+            VCS_REF=${{ env.SHORT_SHA }}
+            BUILD_DATE=${{ env.BUILDX_DATE }}
           push: ${{ github.event_name != 'pull_request' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          sbom: true
+          provenance: false
 
       - name: Install sigstore/cosign
         if: ${{ matrix.image.sign-with-cosign && github.event_name != 'pull_request' }}
