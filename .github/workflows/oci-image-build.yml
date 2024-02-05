@@ -107,7 +107,7 @@ jobs:
 
       - name: Install sigstore/cosign
         if: ${{ matrix.image.sign-with-cosign && github.event_name != 'pull_request' }}
-        uses: sigstore/cosign-installer@v3.3.0
+        uses: sigstore/cosign-installer@v3.4.0
 
       - name: Sign the Image with sigstore/cosign
         if: ${{ matrix.image.sign-with-cosign && github.event_name != 'pull_request' }}
