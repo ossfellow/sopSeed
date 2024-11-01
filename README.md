@@ -33,15 +33,14 @@ This chart initiates a [Kubernetes job](https://kubernetes.io/docs/concepts/work
 To install the chart with the release name `sopseed-gpg`:
 
 ```console
-~> helm repo add sopSeed https://github.com/ossfellow/sopSeed
-~> helm upgrade --install \
-    sopseed-gpg \
-    --namespace flux-system \
-    --create-namespace \
-    --values https://raw.githubusercontent.com/ossfellow/sopSeed/main/chart/values.yaml \
-    oci://ghcr.io/ossfellow/sopSeed:{version} \
-    --dependency-update \
-    --atomic
+helm upgrade --install \
+  sopseed-gpg \
+  --namespace flux-system \
+  --create-namespace \
+  --values https://raw.githubusercontent.com/ossfellow/sopSeed/main/chart/values.yaml \
+  oci://ghcr.io/ossfellow/sopSeed:{version} \
+  --dependency-update \
+  --atomic
 ```
 
 This will create an ed25519/cv25519 GPG key and store it as a Kubernetes secret, named `sopseed-gpg` in the `flux-system` namespace. The output of the installation will include the `.sops.yaml` file, which can be used to encrypt Talos, and Kubernetes secrets in your GitOps repository.
