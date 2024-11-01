@@ -29,7 +29,12 @@ jobs:
           fi
 
           echo "Processing versions..."
-          VERSIONS=$(echo ${PACKAGES} | jq -r '.[] | select(.metadata.container.tags != null) | [.id, (.metadata.container.tags[0] // "latest"), .created_at] | @tsv')
+          # Debug: Print the structure of the first package
+          echo "API Response Structure:"
+          echo "${PACKAGES}" | jq '.[0]'
+
+          # Modified version parsing - removing metadata path since it seems to be different
+          VERSIONS=$(echo ${PACKAGES} | jq -r '.[] | select(.tags != null) | [.id, (.tags[0] // "latest"), .created_at] | @tsv')
           if [ -z "$VERSIONS" ]; then
             echo "No versions to process"
             exit 0
