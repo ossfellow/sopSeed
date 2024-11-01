@@ -16,7 +16,7 @@ jobs:
       - name: Run cleanup script
         run: |
           USERNAME="ossfellow"
-          REPO="sopseed"
+          REPO="gitfence"
           TOKEN="${{ secrets.GITHUB_TOKEN }}"
           echo "Fetching package versions..."
           PACKAGES=$(curl -s -H "Accept: application/vnd.github.v3+json" \
@@ -29,12 +29,7 @@ jobs:
           fi
 
           echo "Processing versions..."
-          # Debug: Print the full response to see structure
-          echo "API Response Structure:"
-          echo "${PACKAGES}" | jq '.'
-
-          # Modified version parsing to handle potential array issues
-          VERSIONS=$(echo ${PACKAGES} | jq -r '.[] | select(.tags != null and (.tags | length > 0)) | [.id, (.tags[0] // "latest"), .created_at] | @tsv')
+          VERSIONS=$(echo ${PACKAGES} | jq -r '.[] | select(.metadata.container.tags != null) | [.id, (.metadata.container.tags[0] // "latest"), .created_at] | @tsv')
           if [ -z "$VERSIONS" ]; then
             echo "No versions to process"
             exit 0
