@@ -29,13 +29,13 @@ jobs:
           fi
 
           echo "Processing versions..."
-          VERSIONS=$(echo ${PACKAGES} | jq -r '.[] | .name + " " + .created_at')
+          VERSIONS=$(echo ${PACKAGES} | jq -r '.[] | select(.metadata.container.tags != null) | [.id, (.metadata.container.tags[0] // "latest"), .created_at] | @tsv')
           if [ -z "$VERSIONS" ]; then
             echo "No versions to process"
             exit 0
           fi
 
-          TO_DELETE=$(echo "${VERSIONS}" | sort -k2r | tail -n +4 | awk '{print $1}')
+          TO_DELETE=$(echo "${VERSIONS}" | sort -k3r | tail -n +4 | awk '{print $1}')
           echo "Will delete all versions except the 3 most recent..."
 
           for VERSION in ${TO_DELETE}; do
