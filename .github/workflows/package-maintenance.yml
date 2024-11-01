@@ -29,14 +29,14 @@ jobs:
           fi
 
           echo "Processing versions..."
-          VERSIONS=$(echo ${PACKAGES} | jq -r '.[] | select(.metadata.container.tags != null) | [.id, (.metadata.container.tags[0] // "latest"), .created_at] | @tsv')
+          VERSIONS=$(echo ${PACKAGES} | jq -r '.[] | select(.tags != null and (.tags | length > 0)) | [.id, (.tags[0] // "latest"), .created_at] | @tsv')
           if [ -z "$VERSIONS" ]; then
             echo "No versions to process"
             exit 0
           fi
 
-          TO_DELETE=$(echo "${VERSIONS}" | sort -k3r | tail -n +4 | awk '{print $1}')
-          echo "Will delete all versions except the 3 most recent..."
+          TO_DELETE=$(echo "${VERSIONS}" | sort -k3r | tail -n +2 | awk '{print $1}')
+          echo "Will delete all versions except the most recent..."
 
           for VERSION in ${TO_DELETE}; do
             echo "Deleting version ${VERSION}..."
@@ -45,7 +45,7 @@ jobs:
               -H "Authorization: token ${TOKEN}" \
               "https://api.github.com/user/packages/container/${REPO}/versions/${VERSION}")
 
-            if [ "$RESPONSE" = "200" ]; then
+            if [ "$RESPONSE" = "204" ] || [ "$RESPONSE" = "200" ]; then
               echo "Successfully deleted version ${VERSION}"
             else
               echo "Failed to delete version ${VERSION} (HTTP ${RESPONSE})"
