@@ -29,7 +29,7 @@ jobs:
           fi
 
           echo "Processing versions..."
-          VERSIONS=$(echo ${PACKAGES} | jq -r '.[] | select(.tags != null and (.tags | length > 0)) | [.id, (.tags[0] // "latest"), .created_at] | @tsv')
+          VERSIONS=$(echo ${PACKAGES} | jq -r '.[] | select(.metadata.container.tags != null) | [.id, (.metadata.container.tags[0] // "latest"), .created_at] | @tsv')
           if [ -z "$VERSIONS" ]; then
             echo "No versions to process"
             exit 0
