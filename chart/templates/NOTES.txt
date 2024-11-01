@@ -1,0 +1,76 @@
+This release is named {{ .Release.Name }}.
+
+{{- if $.Values.age.enabled }}
+Selected key type is Age.
+{{- else }}
+Selected key type is GPG.
+{{- end }}
+
+{{- /* Define variables at the top level */}}
+{{- $masterKey := .Values.global.sopsMasterPubKey | default "YOUR SOPS MASTER PUBLIC KEY" }}
+{{- $agePubKey := "" }}
+{{- $gpgPubKey := "" }}
+{{- if .Values.age.enabled }}
+  {{- if (lookup "v1" "Secret" .Release.Namespace "sopseed-age") }}
+    {{- $agePubKey = (lookup "v1" "Secret" .Release.Namespace "sopseed-age").data.sopseed.agepub | b64dec }}
+  {{- end }}
+{{- else }}
+  {{- if (lookup "v1" "Secret" .Release.Namespace "sopseed-gpg") }}
+    {{- $gpgPubKey = (lookup "v1" "Secret" .Release.Namespace "sopseed-gpg").data.sopseed.pgppub.asc | b64dec }}
+  {{- end }}
+{{- end }}
+
+# .sops.yaml
+#
+# Save the following content as a .sops.yaml file at the base of your repository.
+# To reprint this configuration later, use the following command:
+#   helm get notes {{ .Release.Name }} --namespace {{ .Release.Namespace }}
+---
+creation_rules:
+  - path_regex: infrastructure/*.yaml
+    encrypted_regex: ^(data|stringData)$
+    {{- if .Values.age.enabled }}
+    age: >-
+      {{ $agePubKey }},
+      {{ $masterKey }}
+    {{- else }}
+    pgp: >-
+      {{ $gpgPubKey }},
+      {{ $masterKey }}
+    {{- end }}
+
+  - path_regex: talosconfig
+    encrypted_regex: ^key$
+    {{- if $.Values.age.enabled }}
+    age: >-
+      {{ $agePubKey }},
+      {{ $masterKey }}
+    {{- else }}
+    pgp: >-
+      {{ $gpgPubKey }},
+      {{ $masterKey }}
+    {{- end }}
+
+  - path_regex: kubeconfig
+    encrypted_regex: ^client-key-data$
+    {{- if $.Values.age.enabled }}
+    age: >-
+      {{ $agePubKey }},
+      {{ $masterKey }}
+    {{- else }}
+    pgp: >-
+      {{ $gpgPubKey }},
+      {{ $masterKey }}
+    {{- end }}
+
+  - path_regex: secrets.yaml
+    encrypted_regex: ^(secret|bootstraptoken|secretboxencryptionsecret|token|key)$
+    {{- if $.Values.age.enabled }}
+    age: >-
+      {{ $agePubKey }},
+      {{ $masterKey }}
+    {{- else }}
+    pgp: >-
+      {{ $gpgPubKey }},
+      {{ $masterKey }}
+    {{- end }}

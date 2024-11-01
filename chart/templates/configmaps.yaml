@@ -1,0 +1,198 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sopSeed.name" . }}-entropy-script
+  namespace: {{ .Release.Namespace }}
+data:
+  entropy.sh: |-
+    #! /bin/sh
+
+    # Check available entropy from container runtime
+    printf "%s\n" "Checking available entropy for key generation..."
+    ENTROPY_AVAILABLE=$(cat /proc/sys/kernel/random/entropy_avail)
+    printf "%s\n" "Available entropy: ${ENTROPY_AVAILABLE}"
+
+    # Verify minimum entropy threshold
+    if [ ${ENTROPY_AVAILABLE} -lt {{ include "sopSeed.entropyWatermark" . }} ]; then
+      printf "%s\n" "ERROR: Insufficient entropy (${ENTROPY_AVAILABLE}) for key generation."
+      printf "%s\n" "Required minimum: {{ include "sopSeed.entropyWatermark" . }}"
+      printf "%s\n" "Please ensure your container runtime is configured with sufficient entropy sources."
+      exit 1
+    fi
+
+    printf "%s\n" "Entropy check passed. Proceeding with key generation..."
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sopSeed.name" . }}-crypto-script
+  namespace: {{ .Release.Namespace }}
+data:
+  sopSeed.sh: |-
+    #! /bin/sh
+    set -e
+
+    # Configure kubectl with service account
+    printf "%s\n" "Configuring kubectl with service account..."
+    kubectl config set-cluster k8s --server=https://kubernetes.default --certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    kubectl config set-credentials sopSeed --token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+    kubectl config set-context k8s --cluster=k8s --user=sopSeed
+    kubectl config use-context k8s
+
+    # Check cluster permissions
+    printf "%s\n" "Checking cluster permissions..."
+    printf "%s" "Can {{ include "sopSeed.name" . }} create secrets in {{ .Release.Namespace }} namespace? "
+    if ! kubectl auth can-i create secrets --namespace {{ .Release.Namespace }}; then
+      logger -s "Insufficient permissions; cannot create secrets!"
+      exit 1
+    fi
+
+    # Default encryption method is GPG; check if Age should be used instead
+    if {{ not .Values.age.enabled }}; then
+      # Check if the "sopseed-gpg" secret already exists
+      if {{ .Values.gpg.overwriteKey }}; then
+        printf "%s\n" "Deleting any previous sopseed-gpg secret..."
+        kubectl delete secret sopseed-gpg --namespace {{ .Release.Namespace }} --ignore-not-found
+      fi
+      printf "\n%s\n" "Checking for existence of sopseed-gpg secret..."
+      if kubectl get secret sopseed-gpg --namespace {{ .Release.Namespace }} 2>/dev/null; then
+        logger -s "Skipping GPG key creation, as sopseed-gpg already exists!"
+        exit 1
+      else
+        printf "%s\n\n" "Couldn't find any previous sopseed-gpg secret; a new key will be generated"
+      fi
+
+      # Setup the GPG home directory
+      printf "%s\n" "Setting up GPG home directory..."
+      mkdir -p ${GNUPGHOME}
+      cp -f {{ .Values.global.userHome }}/gpg.conf ${GNUPGHOME}/gpg.conf
+      cp -f {{ .Values.global.userHome }}/gpg.batch ${GNUPGHOME}/gpg.batch
+      chmod 700 ${GNUPGHOME}
+      printf "%s\n\n" "GPG home directory ${GNUPGHOME} is configured"
+
+      # Create a new GPG key
+      printf "%s\n" "Generating a new GPG key..."
+      gpg --quick-generate-key --batch --passphrase "" \
+        "{{- .Values.gpg.name }} ( {{- .Values.gpg.comment -}} )" \
+        default default never
+
+      # Get the fingerprint of the GPG key
+      printf "%s\n" "Getting fingerprint of GPG key..."
+      KEY_FP=$(gpg --with-colons --fingerprint {{ quote .Values.cluster }} | grep fpr | cut -d ':' -f 10 | head -1)
+
+      # Extract the GPG public key
+      printf "%s\n" "Extracting GPG public key..."
+      gpg --export --armor "${KEY_FP}" > ${GNUPGHOME}/sopseed.gpgpub.asc
+
+      # Store the GPG private and public keys as a secret compatible with Flux and ArgoCD
+      printf "%s\n" "Exporting & storing GPG private and public keys, as a secret..."
+      kubectl create secret generic sopseed-gpg \
+          --namespace={{ .Release.Namespace }} \
+          --from-file=sopseed.pgpkey.asc=/dev/stdin \
+          --from-file=sopseed.pgppub.asc=${GNUPGHOME}/sopseed.gpgpub.asc \
+          <<< "$(gpg --export-secret-keys --armor "${KEY_FP}")"
+
+      # Write the GPG public key to standard output
+      printf "\n%s\n" "Printing GPG public key..."
+      cat ${GNUPGHOME}/sopseed.gpgpub.asc
+    else
+      # Check if the "sopseed-age" secret already exists
+      if {{ .Values.age.overwriteKey }}; then
+        printf "%s\n" "Deleting any previous sopseed-age secret..."
+        kubectl delete secret sopseed-age \
+          --namespace {{ .Release.Namespace }} --ignore-not-found
+      fi
+      printf "\n%s\n" "Checking for existence of sopseed-age secret..."
+      if kubectl get secret sopseed-age --namespace {{ .Release.Namespace }} 2>/dev/null; then
+        logger -s "Skipping Age key creation, as sopseed-age already exists!"
+        exit 1
+      else
+        printf "%s\n\n" "Couldn't find any previous sopseed-age secret; a new key will be generated"
+      fi
+
+      # Setup the Age working directory
+      printf "%s\n" "Setting up Age working directory..."
+      AGEHOME={{ .Values.global.userHome }}/age
+      mkdir -p ${AGEHOME}
+      chmod 700 ${AGEHOME}
+      printf "%s\n\n" "Age working directory ${AGEHOME} is configured"
+
+      # Create a new Age key
+      age-keygen -o ${AGEHOME}/sopseed.agekey
+
+      # Store the Age public key for reference
+      printf "%s\n" "Storing Age public key for reference..."
+      sopseed.agepub=$(grep "public key:" ${AGEHOME}/sopseed.agekey | awk '{print $3}')
+
+      # Store the Age private and public keys as a secret compatible with Flux and ArgoCD
+      printf "%s\n" "Storing Age private and public keys as a secret..."
+      kubectl create secret generic sopseed-age \
+          --namespace={{ .Release.Namespace }} \
+          --from-file=sopseed.agekey=${AGEHOME}/sopseed.agekey \
+          --from-literal=sopseed.agepub="${sopseed.agepub}"
+
+      # Print the Age public key to standard output
+      printf "\n%s\n" "Printing Age public key..."
+      echo "${sopseed.agepub}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sopSeed.name" . }}-gpg-conf
+  namespace: {{ .Release.Namespace }}
+data:
+  gpg.conf: |-
+    # GPG Configuration (~/.gnupg/gpg.conf)
+    #
+    # The default expiration time to use for signature expiration
+    default-sig-expire 0
+
+    # The default expiration time to use for key signature expiration
+    default-cert-expire 0
+
+    # This option can be used to change the default algorithms for key generation
+    default-new-key-algo "ed25519/cert,sign+cv25519/encr"
+
+    # This preference list is used for new keys and becomes the default for
+    # "setpref" in the edit menu
+    default-preference-list SHA512 SHA384 SHA256 SHA224 AES256 AES ZLIB BZIP2 ZIP Uncompressed
+
+    # Suppress the initial copyright message
+    no-greeting
+
+    # Enable advanced algorithms
+    expert
+
+    # Disable inclusion of the version string in ASCII armored output
+    no-emit-version
+
+    # Disable comment string in clear text signatures and ASCII armored messages
+    no-comments
+
+    # Identify weak options
+    disable-cipher-algo IDEA 3DES CAST5 TWOFISH AES192
+    weak-digest SHA1
+    weak-digest RIPEMD160
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sopSeed.name" . }}-gpg-batch
+  namespace: {{ .Release.Namespace }}
+data:
+  gpg.batch: |-
+    # This method will not be used, but documented for reference
+    %no-protection
+    Key-Type: eddsa
+    Key-Curve: ed25519
+    Key-Usage: sign
+    Subkey-Type: ecdh
+    Subkey-Curve: cv25519
+    Subkey-Usage: encrypt
+    Expire-Date: 0
+    Name-Comment: {{ quote .Values.gpg.comment }}
+    Name-Real: {{ quote .Values.cluster }}
+    Preferences: SHA512 SHA384 SHA256 SHA224 AES256 AES ZLIB BZIP2 ZIP Uncompressed
+    %commit
+---
+

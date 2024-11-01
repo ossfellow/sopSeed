@@ -1,23 +1,23 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ include "gitfence.name" . }}-acct
+  name: {{ include "sopSeed.name" . }}-acct
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "gitfence.labels" . | nindent 4 }}
+    {{- include "sopSeed.labels" . | nindent 4 }}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: "{{ .Release.Name }}"
   labels:
-    {{- include "gitfence.labels" . | nindent 4 }}
+    {{- include "sopSeed.labels" . | nindent 4 }}
 spec:
   template:
     metadata:
       name: "{{ .Release.Name }}"
       labels:
-        app.kubernetes.io/name: {{ include "gitfence.name" . }}
+        app.kubernetes.io/name: {{ include "sopSeed.name" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
       {{- with .Values.image.pullSecrets }}
@@ -29,41 +29,24 @@ spec:
         runAsGroup: 1000
         fsGroup: 1000
         fsGroupChangePolicy: "OnRootMismatch"
-      serviceAccountName: {{ include "gitfence.name" . }}-acct
+      serviceAccountName: {{ include "sopSeed.name" . }}-acct
       restartPolicy: Never
       {{- if .Values.initContainers.enabled }}
       initContainers:
         - name: {{ .Chart.Name }}-init
           image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          securityContext:
-            capabilities:
-              add: ["SYS_ADMIN"]
-          command: ["/usr/bin/timeout"]
-          args: ["-s", "SIGTERM", "{{ include "gitfence.entropySeedingTimeout" . }}", "{{ .Values.global.userHome }}/entropy.sh"]
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-          volumeMounts:
-            - name: dev-random
-              mountPath: /dev-random
-              readOnly: false
-            - name: dev-urandom
-              mountPath: /dev-urandom
-              readOnly: true
-            - name: dev-zero
-              mountPath: /dev-zero
-              readOnly: true
-            - name: entropy-availble
-              mountPath: /entropy-avail
-              readOnly: true
-            - name: user-home
-              mountPath: {{ .Values.global.userHome }}
-              readOnly: false
-            - name: entropy-script
-              mountPath: {{ .Values.global.userHome }}/entropy.sh
-              subPath: entropy.sh
-              readOnly: true
-        {{- end }}
+          command: ["/bin/sh"]
+          args:
+            - "-c"
+            - |
+              # Modern container runtimes should provide sufficient entropy
+              # Just verify it's available
+              if [ $(cat /proc/sys/kernel/random/entropy_avail) -lt 256 ]; then
+                echo "Insufficient entropy available. Please check your container runtime configuration."
+                exit 1
+              fi
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
@@ -72,10 +55,10 @@ spec:
             - name: GNUPGHOME
               value: "{{ .Values.global.userHome }}/.gnupg"
           securityContext:
-            #runAsNonRoot: true
+            runAsNonRoot: true
             capabilities:
-              add: ["SYS_ADMIN"]
-          command: ["/bin/sh", "{{ .Values.global.userHome }}/gitfence.sh"]
+              drop: ["ALL"]
+          command: ["/bin/sh", "{{ .Values.global.userHome }}/sopSeed.sh"]
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
@@ -83,8 +66,8 @@ spec:
               mountPath: {{ .Values.global.userHome }}
               readOnly: false
             - name: crypto-script
-              mountPath: {{ .Values.global.userHome }}/gitfence.sh
-              subPath: gitfence.sh
+              mountPath: {{ .Values.global.userHome }}/sopSeed.sh
+              subPath: sopSeed.sh
               readOnly: true
             {{- if not .Values.age.enabled }}
             - name: gpg-conf
@@ -100,38 +83,22 @@ spec:
         - name: user-home
           emptyDir: {}
         {{- if .Values.initContainers.enabled }}
-        - name: dev-random
-          hostPath:
-            path: /dev/random
-            type: CharDevice
-        - name: dev-urandom
-          hostPath:
-            path: /dev/urandom
-            type: CharDevice
-        - name: dev-zero
-          hostPath:
-            path: /dev/zero
-            type: CharDevice
-        - name: entropy-availble
-          hostPath:
-            path: /proc/sys/kernel/random/entropy_avail
-            type: File
         - name: entropy-script
           configMap:
-            name: {{ include "gitfence.name" . }}-entropy-script
+            name: {{ include "sopSeed.name" . }}-entropy-script
             defaultMode: 0755
         {{- end }}
         - name: crypto-script
           configMap:
-            name: {{ include "gitfence.name" . }}-crypto-script
+            name: {{ include "sopSeed.name" . }}-crypto-script
             defaultMode: 0755
         {{- if not .Values.age.enabled }}
         - name: gpg-conf
           configMap:
-            name: {{ include "gitfence.name" . }}-gpg-conf
+            name: {{ include "sopSeed.name" . }}-gpg-conf
             defaultMode: 0640
         - name: gpg-batch
           configMap:
-            name: {{ include "gitfence.name" . }}-gpg-batch
+            name: {{ include "sopSeed.name" . }}-gpg-batch
             defaultMode: 0640
         {{- end }}

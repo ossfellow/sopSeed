@@ -1,0 +1,49 @@
+name: Create SBOM and Provenance Artifacts
+
+on:
+  workflow_call:
+    inputs:
+      artifact:
+        description: 'The artifact to create SBOM and Provenance for'
+        required: true
+        type: string
+      path:
+        description: 'The path where operations should be performed'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  create-sboms-and-attestation:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # For now, we will create attestation only for the artifact, and its SBOM, as described at:
+      #   https://docs.github.com/en/actions/security-guides/using-artifact-attestations-to-establish-provenance-for-builds
+      - name: Create the artifact SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          file: ./${{ inputs.path }}/${{ inputs.artifact }}
+          artifact-name: sbom-${{ inputs.artifact }}-spdx.json
+          format: spdx-json
+          config: ${{ env.GITHUB_WORKSPACE }}/.syft.yaml
+
+      # - name: Create the artifact codebase SBOM
+      #   uses: anchore/sbom-action@v0
+      #   with:
+      #     path: ./${{ inputs.path }}
+      #     artifact-name: sbom-${{ inputs.artifact }}-codebase-spdx.json
+      #     format: spdx-json
+      #     config: ${{ env.GITHUB_WORKSPACE }}/.syft.yaml
+
+      - name: Create the artifact Provenance
+        uses: actions/attest-sbom@v1
+        with:
+          subject-path: ./${{ inputs.path }}/${{ inputs.artifact }}
+          sbom-path: sbom-${{ inputs.artifact }}-spdx.json

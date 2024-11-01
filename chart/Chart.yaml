@@ -1,0 +1,36 @@
+apiVersion: v2
+name: sopSeed
+description: sopSeed generates compact, strong, GPG (ed25519/cv25519), or Age (X25519) keys, for GitOps, and stores their private and public keys as Kubernetes secrets
+version: 0.5.0
+
+type: application
+appVersion: "0.5.0"
+
+kubeVersion: ">=1.27.0"
+
+maintainers:
+  - name: ossfellow
+    email: ossfellow@users.noreply.github.com
+    url: https://github.com/ossfellow
+
+home: https://github.com/ossfellow/sopSeed
+sources:
+  - https://gnupg.org
+  - https://age-encryption.org/v1/
+  - https://www.aquasec.com
+  - https://www.alpinelinux.org
+  - https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/
+  - https://github.com/krallin/tini
+
+deprecated: false
+
+keywords:
+  - sopSeed
+  - gitops
+  - "Flux v2"
+  - ArgoCD
+  - "CNCF SOPS"
+  - security
+  - gpg
+  - age
+  - cosign

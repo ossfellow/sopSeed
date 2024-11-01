@@ -1,13 +1,10 @@
-# Ignore VS Code files and directories
-.vscode/*
-*-workspace
-
 # Ignore local development items
 skaffold.yaml
-oci/gitfence/.version
-oci/gitfence/buildx.sh
+helpers/.version
+helpers/buildx.sh
+cosign.pub
+**/*.bak
 
 # Other files to ignore
-**/.DS_Store
 artifacthub-repo.yml
 **/*.tgz
