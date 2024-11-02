@@ -3,11 +3,11 @@ name: Test and Release sopSeed Helm Chart
 on:
   push:
     paths:
-      - './chart/**'
+      - "./chart/**"
   pull_request:
     paths:
-      - './chart/**'
-      - '.github/workflows/helm-release.yml'
+      - "./chart/**"
+      - ".github/workflows/helm-release.yml"
   workflow_dispatch:
 
 permissions:
@@ -35,7 +35,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12.0'
+          python-version: "3.12.0"
 
       - name: Set up chart-testing
         uses: helm/chart-testing-action@v2.6.0
@@ -46,11 +46,19 @@ jobs:
 
       - name: Run chart-testing (list-changed)
         id: list-changed
-        env:
-          CT_TARGET_BRANCH: main
-          CT_CHART_DIRS: "./chart"
         run: |
-          changed=$(ct list-changed)
+          # Determine the target branch
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            TARGET_BRANCH="${{ github.base_ref }}"
+            # Fetch the target branch
+            git fetch origin ${TARGET_BRANCH}:${TARGET_BRANCH}
+          else
+            TARGET_BRANCH="main"
+          fi
+
+          echo "Running chart-testing against target branch: ${TARGET_BRANCH}"
+
+          changed=$(ct list-changed --target-branch ${TARGET_BRANCH})
           if [[ ! -n "${changed}" ]]; then
             echo "CHANGED=true" >> $GITHUB_ENV
           fi
@@ -67,7 +75,7 @@ jobs:
       - name: Run chart-testing (install)
         if: ${{ env.CHANGED == 'true' }}
         run: |
-            ct install --config chart/ct.yaml
+          ct install --config chart/ct.yaml
 
   release:
     name: Release sopSeed Helm Chart
