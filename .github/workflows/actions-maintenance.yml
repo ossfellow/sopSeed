@@ -25,7 +25,7 @@ jobs:
           REPO="${{ github.repository }}"
 
           # Use input retention days for manual runs, default for scheduled
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          if [[ "${{ github.event.name }}" == "workflow_dispatch" ]]; then
             RETENTION_DAYS="${{ github.event.inputs.retention_days }}"
           else
             RETENTION_DAYS=90
@@ -41,9 +41,9 @@ jobs:
             CUTOFF=$(date -d "${RETENTION_DAYS} days ago" +%s)
           fi
 
-          echo "Fetching all workflow runs..."
+          echo "Fetching workflow runs..."
           PAGE=1
-          ALL_RUNS=()
+          RUNS_TO_DELETE=()
 
           while true; do
             RESPONSE=$(curl -s -H "Accept: application/vnd.github.v3+json" \
@@ -64,42 +64,47 @@ jobs:
               exit 1
             fi
 
-            # Debug output for first page
-            if [ "$PAGE" = "1" ]; then
-              echo "API Response structure (first page):"
-              echo "${RESPONSE}" | jq '.'
-            fi
-
-            RUNS=$(echo "${RESPONSE}" | jq -r '.workflow_runs // []')
+            # Get total count
             TOTAL_COUNT=$(echo "${RESPONSE}" | jq -r '.total_count // 0')
-
             if [ "$TOTAL_COUNT" = "0" ]; then
               echo "No workflow runs found"
               exit 0
             fi
 
-            if [ -z "${RUNS}" ] || [ "${RUNS}" = "[]" ]; then
+            # Process workflow runs from this page
+            echo "Processing page ${PAGE}..."
+            PAGE_RUNS=$(echo "${RESPONSE}" | jq -r --arg CUTOFF "$CUTOFF" '.workflow_runs[] | 
+              select(.created_at != null) | 
+              select((.created_at | fromdateiso8601) < ($CUTOFF | tonumber)) | 
+              .id')
+
+            if [ -z "${PAGE_RUNS}" ]; then
               break
             fi
 
-            ALL_RUNS+=("${RUNS}")
+            while IFS= read -r run_id; do
+              if [ ! -z "$run_id" ]; then
+                RUNS_TO_DELETE+=("$run_id")
+              fi
+            done <<< "${PAGE_RUNS}"
+
+            # Check if we've processed all runs
+            RUNS_COUNT=$(echo "${RESPONSE}" | jq -r '.workflow_runs | length')
+            if [ "$RUNS_COUNT" -lt 100 ]; then
+              break
+            fi
+
             PAGE=$((PAGE + 1))
           done
 
-          echo "Processing runs from all workflows..."
-          TO_DELETE=$(echo "${ALL_RUNS[@]}" | jq -r --arg CUTOFF "$CUTOFF" \
-            'select(.created_at != null) | select(.created_at | fromdateiso8601 < ($CUTOFF | tonumber)) | .id')
-
-          if [ -z "$TO_DELETE" ]; then
-            echo "No runs older than ${RETENTION_DAYS} days found"
+          TOTAL_TO_DELETE=${#RUNS_TO_DELETE[@]}
+          if [ "$TOTAL_TO_DELETE" -eq 0 ]; then
+            echo "No runs found to delete"
             exit 0
           fi
 
-          TOTAL_TO_DELETE=$(echo "$TO_DELETE" | wc -l)
-          echo "Found ${TOTAL_TO_DELETE} runs to delete..."
-          echo "Will delete all runs older than ${RETENTION_DAYS} days..."
-
-          for RUN_ID in ${TO_DELETE}; do
+          echo "Found ${TOTAL_TO_DELETE} runs to delete"
+          for RUN_ID in "${RUNS_TO_DELETE[@]}"; do
             echo "Deleting run ${RUN_ID}..."
             RESPONSE=$(curl -X DELETE -s -o /dev/null -w "%{http_code}" \
               -H "Accept: application/vnd.github.v3+json" \
