@@ -9,16 +9,16 @@ metadata:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: "{{ .Release.Name }}"
+  name: "{{ .Release.Name | lower }}"
   labels:
     {{- include "sopSeed.labels" . | nindent 4 }}
 spec:
   template:
     metadata:
-      name: "{{ .Release.Name }}"
+      name: "{{ .Release.Name | lower }}"
       labels:
         app.kubernetes.io/name: {{ include "sopSeed.name" . }}
-        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name | lower }}
     spec:
       {{- with .Values.image.pullSecrets }}
       imagePullSecrets:
