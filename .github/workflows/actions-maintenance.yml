@@ -19,29 +19,43 @@ jobs:
           REPO="${{ github.repository }}"
           RETENTION_DAYS=90
 
-          echo "Fetching workflow runs..."
-          RUNS=$(curl -s -H "Accept: application/vnd.github.v3+json" \
-            -H "Authorization: token ${TOKEN}" \
-            "https://api.github.com/repos/${REPO}/actions/runs")
+          echo "Fetching all workflow runs..."
+          PAGE=1
+          ALL_RUNS=()
 
-          if [ -z "$RUNS" ] || [ "$RUNS" = "null" ]; then
-            echo "No runs found or error in API response"
+          while true; do
+            RESPONSE=$(curl -s -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: token ${TOKEN}" \
+              "https://api.github.com/repos/${REPO}/actions/runs?per_page=100&page=${PAGE}")
+
+            RUNS=$(echo "${RESPONSE}" | jq -r '.workflow_runs[]')
+            if [ -z "${RUNS}" ]; then
+              break
+            fi
+
+            ALL_RUNS+=("${RUNS}")
+            PAGE=$((PAGE + 1))
+          done
+
+          if [ ${#ALL_RUNS[@]} -eq 0 ]; then
+            echo "No workflow runs found"
             exit 0
           fi
 
           # Calculate cutoff date (90 days ago)
           CUTOFF=$(date -d "${RETENTION_DAYS} days ago" +%s)
 
-          echo "Processing runs..."
-          TO_DELETE=$(echo ${RUNS} | jq -r --arg CUTOFF "$CUTOFF" \
-            '.workflow_runs[] | select(.created_at | fromdateiso8601 < ($CUTOFF | tonumber)) | .id')
+          echo "Processing runs from all workflows..."
+          TO_DELETE=$(echo "${ALL_RUNS[@]}" | jq -r --arg CUTOFF "$CUTOFF" \
+            'select(.created_at | fromdateiso8601 < ($CUTOFF | tonumber)) | .id')
 
           if [ -z "$TO_DELETE" ]; then
-            echo "No old runs to delete"
+            echo "No runs older than ${RETENTION_DAYS} days found"
             exit 0
           fi
 
-          echo "Will delete runs older than ${RETENTION_DAYS} days..."
+          echo "Found $(echo "$TO_DELETE" | wc -l) runs to delete..."
+          echo "Will delete all runs older than ${RETENTION_DAYS} days..."
 
           for RUN_ID in ${TO_DELETE}; do
             echo "Deleting run ${RUN_ID}..."
