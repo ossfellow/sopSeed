@@ -6,9 +6,9 @@ on:
   workflow_dispatch: # Allow manual runs
     inputs:
       retention_days:
-        description: 'Number of days to retain (0 for complete cleanup)'
+        description: "Number of days to retain (0 for complete cleanup)"
         required: true
-        default: '90'
+        default: "90"
         type: string
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
         run: |
           TOKEN="${{ secrets.GITHUB_TOKEN }}"
           REPO="${{ github.repository }}"
-          
+
           # Use input retention days for manual runs, default for scheduled
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             RETENTION_DAYS="${{ github.event.inputs.retention_days }}"
@@ -32,7 +32,7 @@ jobs:
           fi
 
           echo "Retention period: ${RETENTION_DAYS} days"
-          
+
           # For complete cleanup (RETENTION_DAYS=0), adjust the cutoff date
           if [ "${RETENTION_DAYS}" = "0" ]; then
             echo "Performing complete cleanup..."
@@ -50,8 +50,35 @@ jobs:
               -H "Authorization: token ${TOKEN}" \
               "https://api.github.com/repos/${REPO}/actions/runs?per_page=100&page=${PAGE}")
 
-            RUNS=$(echo "${RESPONSE}" | jq -r '.workflow_runs[]')
-            if [ -z "${RUNS}" ]; then
+            # Check if response is valid JSON
+            if ! echo "${RESPONSE}" | jq -e . >/dev/null 2>&1; then
+              echo "Error: Invalid JSON response from API"
+              echo "Response: ${RESPONSE}"
+              exit 1
+            fi
+
+            # Check for API errors
+            ERROR_MESSAGE=$(echo "${RESPONSE}" | jq -r '.message // empty')
+            if [ ! -z "$ERROR_MESSAGE" ]; then
+              echo "API Error: ${ERROR_MESSAGE}"
+              exit 1
+            fi
+
+            # Debug output for first page
+            if [ "$PAGE" = "1" ]; then
+              echo "API Response structure (first page):"
+              echo "${RESPONSE}" | jq '.'
+            fi
+
+            RUNS=$(echo "${RESPONSE}" | jq -r '.workflow_runs // []')
+            TOTAL_COUNT=$(echo "${RESPONSE}" | jq -r '.total_count // 0')
+
+            if [ "$TOTAL_COUNT" = "0" ]; then
+              echo "No workflow runs found"
+              exit 0
+            fi
+
+            if [ -z "${RUNS}" ] || [ "${RUNS}" = "[]" ]; then
               break
             fi
 
@@ -59,21 +86,17 @@ jobs:
             PAGE=$((PAGE + 1))
           done
 
-          if [ ${#ALL_RUNS[@]} -eq 0 ]; then
-            echo "No workflow runs found"
-            exit 0
-          fi
-
           echo "Processing runs from all workflows..."
           TO_DELETE=$(echo "${ALL_RUNS[@]}" | jq -r --arg CUTOFF "$CUTOFF" \
-            'select(.created_at | fromdateiso8601 < ($CUTOFF | tonumber)) | .id')
+            'select(.created_at != null) | select(.created_at | fromdateiso8601 < ($CUTOFF | tonumber)) | .id')
 
           if [ -z "$TO_DELETE" ]; then
             echo "No runs older than ${RETENTION_DAYS} days found"
             exit 0
           fi
 
-          echo "Found $(echo "$TO_DELETE" | wc -l) runs to delete..."
+          TOTAL_TO_DELETE=$(echo "$TO_DELETE" | wc -l)
+          echo "Found ${TOTAL_TO_DELETE} runs to delete..."
           echo "Will delete all runs older than ${RETENTION_DAYS} days..."
 
           for RUN_ID in ${TO_DELETE}; do
