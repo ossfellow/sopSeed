@@ -1,6 +1,6 @@
 # sopSeed
 
-[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/ossfellow/sopSeed?style=plastic)](https://github.com/ossfellow/sopSeed/releases) [![GitHub](https://img.shields.io/github/license/ossfellow/sopSeed?style=plastic)](https://github.com/ossfellow/sopSeed/blob/main/LICENSE)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/ossfellow/sopSeed?include_prereleases&label=helm%20chart&style=plastic)](https://github.com/ossfellow/sopSeed/releases) [![GitHub](https://img.shields.io/github/license/ossfellow/sopSeed?style=plastic)](https://github.com/ossfellow/sopSeed/blob/main/LICENSE)
 [![Open in Visual Studio Code](https://img.shields.io/badge/Open%20in%20VS%20Code-blue?logo=visual-studio-code)](https://open.vscode.dev/ossfellow/sopSeed)
 
 ## Purpose
