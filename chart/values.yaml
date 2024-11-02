@@ -1,12 +1,13 @@
-# Default values for gitfence.
+# Default values for sopSeed.
 
 global:
   # GPG and Age key generation directory. it is also used to set GNUPGHOME environment variable
   userHome: "/home/secops"
+  sopsMasterPubKey: "YOUR SOPS MASTER PUBLIC KEY"
 
 image:
   registry: ghcr.io
-  repository: masoudbahar/gitfence
+  repository: ossfellow/sopSeed
   pullPolicy: IfNotPresent
   pullSecrets: []
   # Overrides the image tag whose default is the chart appVersion
@@ -31,16 +32,16 @@ initContainers:
   timeToLive: 10m
 
 gpg:
-  enabled: false
+  enabled: true
   # Kubernetes cluster , which the keys will be stored in (e.g. orion.example.com)
   name: "gitops.example.com"
-  comment: "Flux SOPS secrets"
+  comment: "Flux+ArgoCD SOPS secrets"
   # Whether a previously created GPG [ed25519/cv2519] key should be replaced (true or false)
   # ATTENTION: Overwriting a previously used key could render associated encrypted data inaccessible!
   overwriteKey: false
 
 age:
-  enabled: true
+  enabled: false
   # Whether a previously created Age [X25519] key should be replaced (true or false)
   # ATTENTION: Overwriting a previously used key could render associated encrypted data inaccessible!
   overwriteKey: false

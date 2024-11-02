@@ -4,76 +4,149 @@ on:
   schedule:
     - cron: '11 1 1 * *'
   push:
+    branches:
+      - main
     paths:
-      - 'oci/gitfence/Dockerfile'
+      - './Dockerfile'
+  pull_request:
+    paths:
+      - './Dockerfile'
+  workflow_dispatch:
 
 jobs:
   build:
     name: "Build ${{ matrix.image.name }}"
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     strategy:
       fail-fast: false
       matrix:
         image:
-          - name: masoudbahar/gitfence
-            path: oci/gitfence
-            platforms: linux/amd64,linux/386,linux/arm/v6,linux/arm/v7,linux/arm64/v8
+          - name: sopseed
+            context: .
+            platforms: linux/amd64,linux/arm64
             publish-on-ghcr: true
-            publish-on-dickerhub: false
+            publish-on-dockerhub: false
+            build-attestation: false
     steps:
       - name: Checkout
-        uses: actions/checkout@v2.3.4
-      - name: Get current date
-        id: date
-        run: echo "::set-output name=date::$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+        uses: actions/checkout@v4
+
+      - name: Set Custom Variables
+        id: custom
+        run: |
+          # Get base version
+          GIT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$GIT_TAG" ]; then
+            BASE_VERSION=${GIT_TAG#v}
+          elif [ -f "chart/Chart.yaml" ]; then
+            BASE_VERSION=$(grep '^version:' chart/Chart.yaml | cut -d' ' -f2)
+          else
+            BASE_VERSION=$(date -u +'%Y%m%d')
+          fi
+
+          # Add build metadata
+          echo "BUILD_VERSION=${BASE_VERSION}+sha.${GITHUB_SHA::8}" >> $GITHUB_ENV
+
+      - name: Set Target OCI Registry
+        run: |
+          if ${{ matrix.image.publish-on-ghcr }} && ! ${{ matrix.image.publish-on-dockerhub }}; then
+            echo "IMAGES=ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}" >> $GITHUB_ENV
+          elif ! ${{ matrix.image.publish-on-ghcr }} && ${{ matrix.image.publish-on-dockerhub }}; then
+            echo "IMAGES=${{ github.repository_owner }}/${{ matrix.image.name }}" >> $GITHUB_ENV
+          elif ${{ matrix.image.publish-on-ghcr }} && ${{ matrix.image.publish-on-dockerhub }}; then
+            echo "IMAGES=${{ github.repository_owner }}/${{ matrix.image.name }},ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}" >> $GITHUB_ENV
+          fi
+
       - name: Docker Metadata
         id: meta
-        uses: docker/metadata-action@v3.4.1
+        uses: docker/metadata-action@v5
         with:
-          images: ${{ matrix.image.name }},ghcr.io/${{ matrix.image.name }}
+          images: ${{ env.IMAGES }}
+          flavor: |
+            latest=true
           tags: |
-            type=schedule,pattern={{date 'YYYYMMDD'}}
+            type=raw,enable=true,prefix=v,suffix=,value=${{ env.BUILD_VERSION }}
+            type=sha,enable=true,prefix=,suffix=,format=short
+            type=schedule
             type=semver,pattern={{version}}
-            type=sha
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=ref,event=branch
+            type=ref,event=pr
+          labels: |
+            org.opencontainers.image.title=sopSeed
+            org.opencontainers.image.authors=ossfellow@users.noreply.github.com
+            org.opencontainers.image.description="sopSeed generates compact, strong, GPG (ed25519/cv25519), or Age (X25519) keys, for GitOps, and other use cases."
+            org.opencontainers.image.documentation=${{ github.event.repository.html_url }}/helpers/README.md
+            org.opencontainers.image.url=${{ github.event.repository.html_url }}
+            org.opencontainers.image.source=${{ github.event.repository.html_url }}/Dockerfile
+            org.opencontainers.image.licenses=${{ github.event.repository.license.spdx_id }}
+            org.opencontainers.image.version=${{ github.run_number }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ steps.meta.outputs.created }}
+
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1.2.0
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker BuildX
-        uses: docker/setup-buildx-action@v1.5.1
+        uses: docker/setup-buildx-action@v3
+
       - name: Login to GitHub Container Registry
         if: ${{ matrix.image.publish-on-ghcr }}
-        uses: docker/login-action@1.10.0
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
           logout: true
+
       - name: Login to DockerHub
         if: ${{ matrix.image.publish-on-dockerhub }}
-        uses: docker/login-action@v1.10.0
+        uses: docker/login-action@v3
         with:
           registry: docker.io
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
           logout: true
-      - name: Build and push
-        uses: docker/build-push-action@v2.6.1
+
+      - name: Build and Push
+        uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.image.path }}
+          context: ${{ matrix.image.context }}
           platforms: ${{ matrix.image.platforms }}
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
-            VERSION=${{ steps.meta.outputs.version }}
-            LICENSE=${{ github.event.repository.license.spdx_id }}
-            VCS_URL=${{ github.event.repository.html_url }}
-            VCS_REF=${GITHUB_SHA::8}
-            BUILD_DATE=${{ steps.date.outputs.date }}
-          push: true
-      - name: Update repo description
-        if: ${{ matrix.image.publish-on-dockerhub }}
-        uses: peter-evans/dockerhub-description@v2
+            BUILDKIT_SBOM_SCAN_CONTEXT=true
+            BUILDKIT_SBOM_SCAN_STAGE=true
+          push: ${{ github.event_name != 'pull_request' }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          sbom: true
+          provenance: mode=max
+
+      # - name: Build attestation
+      #   if: ${{ matrix.image.build-attestation && github.event_name != 'pull_request' }}
+      #   uses: ./.github/workflows/provenance.yaml
+      #   with:
+      #     artifact: ${{ matrix.image.name }}
+      #     path: ./
+
+      # - name: Push SBOM and Provenance to OCI Registry
+      #   if: ${{ matrix.image.build-attestation && github.event_name != 'pull_request' }}
+      #   run: |
+      #     cosign attach sbom --sbom sbom-${{ matrix.image.name }}-spdx.json oci://ghcr.io/${{ github.repository_owner }}${{ matrix.image.name }}
+      #     cosign attach attestation --attestation provenance-${{ matrix.image.name }}.json oci://ghcr.io/${{ github.repository_owner }}${{ matrix.image.name }}
+
+      - name: Update DockerHub Repository Description
+        if: ${{ matrix.image.publish-on-dockerhub && github.event_name != 'pull_request' }}
+        uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
           repository: ${{ matrix.image.name }}
           short-description: 'An OCI image, for creating and managing GPG and Age keys'
-          readme-filepath: ./oci/gitfence/IMAGE.md
+          readme-filepath: ./helpers/README.md

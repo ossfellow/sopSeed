@@ -2,10 +2,10 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ include "gitfence.name" . }}-acct
+  name: {{ include "sopSeed.name" . }}-acct
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "gitfence.labels" . | nindent 4 }}
+    {{- include "sopSeed.labels" . | nindent 4 }}
 rules:
 - apiGroups: [""]
   resources: ["secrets", "configmaps"]
@@ -14,16 +14,16 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ include "gitfence.name" . }}-acct
+  name: {{ include "sopSeed.name" . }}-acct
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "gitfence.labels" . | nindent 4 }}
+    {{- include "sopSeed.labels" . | nindent 4 }}
 subjects:
 - kind: ServiceAccount
-  name: {{ include "gitfence.name" . }}-acct
+  name: {{ include "sopSeed.name" . }}-acct
   namespace: {{ .Release.Namespace }}
 roleRef:
   kind: Role
-  name: {{ include "gitfence.name" . }}-acct
+  name: {{ include "sopSeed.name" . }}-acct
   apiGroup: rbac.authorization.k8s.io
 {{- end }}

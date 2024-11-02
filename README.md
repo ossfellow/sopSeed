@@ -1,95 +1,101 @@
-# GitFence
+# sopSeed
 
-[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/masoudbahar/gitfence?style=plastic)](https://github.com/masoudbahar/gitfence/releases) [![GitHub](https://img.shields.io/github/license/masoudbahar/gitfence?style=plastic)](https://github.com/masoudbahar/gitfence/blob/main/LICENSE)
-[![Open in Visual Studio Code](https://open.vscode.dev/badges/open-in-vscode.svg)](https://open.vscode.dev/masoudbahar/gitfence)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/ossfellow/sopSeed?include_prereleases\&label=helm%20chart\&style=plastic)](https://github.com/ossfellow/sopSeed/releases) [![GitHub](https://img.shields.io/github/license/ossfellow/sopSeed?style=plastic)](https://github.com/ossfellow/sopSeed/blob/main/LICENSE)
+[![Open in Visual Studio Code](https://img.shields.io/badge/Open%20in%20VS%20Code-blue?logo=visual-studio-code)](https://open.vscode.dev/ossfellow/sopSeed)
 
-If [the core idea of GitOps](https://www.gitops.tech/#what-is-gitops) is declarative description of the desired configuration of infrastructure and applications, then wouldn't it make sense to declaratively generate and store keys, used for encryption of sensitive GitOps data?
+## Purpose
 
-GitFence does exactly that, in a secure, and minimalistic way.
+sopSeed enhances the security and simplicity of encryption key setup in GitOps pipelines, such as [Flux v2](https://fluxcd.io/docs/) and [ArgoCD](https://argo-cd.readthedocs.io/), by generating and storing encryption keys directly within a Kubernetes cluster. It supports both [GPG](https://gnupg.org) keys ([ed25519](https://en.wikipedia.org/wiki/EdDSA#Ed25519)/[cv25519](https://en.wikipedia.org/wiki/Curve25519)) and [Age](https://github.com/FiloSottile/age) keys ([X25519](https://en.wikipedia.org/wiki/Curve25519)).
 
-It creates either a [GPG](https://gnupg.org) key ([ed25519](https://en.wikipedia.org/wiki/EdDSA#Ed25519)/[cv25519](https://en.wikipedia.org/wiki/Curve25519)), or an [Age](https://github.com/FiloSottile/age) key ([X25519](https://en.wikipedia.org/wiki/Curve25519)), inside a Kubernetes cluster, and stores the private and public keys, as [Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/). The kubectl command for retrieving the public key is printed to console, when the Helm chart is installed (the retrieval template is in [NOTES.txt](https://github.com/masoudbahar/gitfence/blob/main/templates/NOTES.txt)).
+## Key Features
 
-While the Helm chart, or the OCI image, could be used for a variety of use cases, GitFence is primarily built for improving the security and simplicity of encryption key setup, in GitOps pipelines such as [Flux v2](https://fluxcd.io/docs/), for [managing Kubernetes secrets with Mozilla SOPS](https://toolkit.fluxcd.io/guides/mozilla-sops/).
+*   **Secure Key Generation**: Generates GPG or Age keys inside a Kubernetes cluster and stores them as [Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/).
 
-As a security tool, and to promote security best practices, the [Aqua Security's trivy](https://github.com/aquasecurity/trivy) image vulnerability scanner is incorporated into the [Dockerfile](https://github.com/masoudbahar/gitfence/blob/main/oci/gitfence/README.md) image build instructions, which would fail the build, if the OS or any of the utilized packages have known vulnerabilities.
+*   **GitOps Integration**: Ideal for use with GitOps pipelines, such as Flux v2 and ArgoCD, for managing Kubernetes secrets with CNCF SOPS.
 
-GitFence also comes with multi-tenancy, and multi-arch support.
+*   **Minimalistic and Lightweight**: Ensures clean builds with [Aqua Security's trivy](https://github.com/aquasecurity/trivy) image vulnerability scanner.
+
+*   **Authenticity**: Guarantees the authenticity of OCI images using Docker's SBOM and provenance features.
+
+*   **Multi-Tenancy and Multi-Arch Support**: Supports multiple tenants and architectures.
 
 ## Introduction
 
-This chart initiates a [Kubernetes job](https://kubernetes.io/docs/concepts/workloads/controllers/job/), which creates either a GPG key, which is default, or Age key, and stores its private and public keys, as Kubernetes secrets. The notable features of this chart include:
+This chart initiates a [Kubernetes job](https://kubernetes.io/docs/concepts/workloads/controllers/job/) to create either a GPG key (default) or an Age key and stores the private and public keys as Kubernetes secrets. Notable features include:
 
-- Execution of the [Init Container](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/) ensures enough entropy is available, for generation of strong encryption keys.
-- GPG and Age keys use Ed25519 and Curve25519, which provide compact, high performance, strong, encryption keys.
-- The passphrase is not set, so, the key could be used by tools like [Mozilla SOPS](https://github.com/mozilla/sops).
-- Only the Init Container requires privileged access, to use /dev/random, /dev/urandom, and /dev/zero devices. It could be disabled, for complete unprivileged execution.
+*   **Strong Encryption**: Uses Ed25519 and Curve25519 for GPG and Age keys, providing compact, high-performance, strong encryption keys.
+
+*   **Passphrase-Free**: Keys are generated without a passphrase, making them suitable for tools like [CNCF SOPS](https://github.com/mozilla/sops).
+
+*   **.sops.yaml Generation**: Automatically generates a `.sops.yaml` file covering Talos and Kubernetes-related secret encryption patterns, printed out in the `NOTES.txt` after chart installation.
 
 ## Prerequisites
 
-- Kubernetes 1.19+
-- Helm 3+
-- Privileged execution for adding entropy bits, using rngd daemon (if Init Container is [enabled](https://github.com/masoudbahar/gitfence/blob/main/values.yaml))
+*   Kubernetes 1.27+
+
+*   Helm 3.8+
 
 ## Installing the Chart
 
-To install the chart with the release name `flux-sops`:
+To install the chart with the release name `sopseed-gpg`:
 
 ```console
-~> helm repo add gitfence https://github.com/masoudbahar/gitfence
-~> helm install flux-sops gitfence --namespace flux-system --create-namespace --atomic
+helm upgrade --install \
+  sopseed-gpg \
+  --namespace flux-system \
+  --create-namespace \
+  --values https://raw.githubusercontent.com/ossfellow/sopSeed/main/chart/values.yaml \
+  oci://ghcr.io/ossfellow/sopseed-chart:{version} \
+  --dependency-update \
+  --atomic
 ```
 
-These commands deploy gitfence on your Kubernetes cluster, with the default configuration. The [Parameters](#parameters) section lists the parameters that can be configured during installation.
+This will create an ed25519/cv25519 GPG key and store it as a Kubernetes secret, named `sopseed-gpg` in the `flux-system` namespace. The output of the installation will include the `.sops.yaml` file, which can be used to encrypt Talos, and Kubernetes secrets in your GitOps repository.
 
-## Uninstalling the Chart
+You can pass the `global.sopsMasterPubKey` value to the helm chart installation command to get a ready-to-use `.sops.yaml` for the targeted k8s cluster. Adding a secondary encryption key is a best practice to ensure, in the event of cluster SOPS key loss, the master key can still decrypt the secrets.
 
-To uninstall/delete the `flux-sops` chart:
+> Whenever needed, you can see the output of the helm installation command by running `helm get notes sopseed-gpg`.
+>
+> Please replace `{version}` with the desired chart version (e.g., `0.1.0`), before running the helm installation command.
+
+### Verify Image Authenticity
+
+To verify the authenticity of the image using Docker's SBOM and provenance features:
 
 ```console
-~> helm delete flux-sops --namespace flux-system
+docker sbom ghcr.io/ossfellow/sopseed:{version}
+docker trust inspect --pretty ghcr.io/ossfellow/sopseed:{version}
 ```
 
-The command removes all the Kubernetes components associated with the chart and deletes the release. Adding the option `--purge` to the above command would delete all history as well.
-> <span style="color:brown"> The generated GPG or Age private and public keys, stored as Kubernetes secrets, are preserved. </span>
+## Using the sopSeed OCI Image Directly
 
-## Parameters
+If you prefer to use the sopSeed OCI image directly for generating and managing GPG and Age keys without deploying the Helm chart, please refer to its [README](./helpers/README.md) file. It provides detailed instructions and usage examples for interacting with the image in standalone mode.
 
-The following table lists the configurable parameters of the gitfence chart and their default values.
+## Helm Values
 
-| Parameter                          | Description                                                  | Default                          |
-| ---------------------------------- | ------------------------------------------------------------ | -------------------------------- |
-| `global.home`                      | Home directory of the default user; will set GNUPGHOME       | `/home/secops`                   |
-| `image.registry`                   | gitfence image registry                                      | `ghcr.io`                      |
-| `image.repository`                 | gitfence image name                                          | `masoudbahar/gitfence`           |
-| `image.pullPolicy`                 | gitfence image pull policy                                   | `IfNotPresent`                   |
-| `image.PullSecrets`                | Image registry secret names as an array                      | `[]`                             |
-| `nameOverride`                     | Partially overrides the name of the chart                    | `""`                             |
-| `fullnameOverride`                 | Fully overrides the name of the chart                        | `""`                             |
-| `resources`                        | CPU and Memory resource requests/limits                      | `{}`                             |
-| `initContainers.enabled`           | Whether init container should be executed                    | `true`                           |
-| `initContainers.entropyWatermark`  | Minimum available entropy for GPG or Age key generation      | `1024`<sup>1</sup>               |
-| `initContainers.timeToLive`        | Limiting the execution time, on slow nodes                   | `10m`                            |
-| `gpg.enabled`                      | Whether GPG keys should be created (default)                 | `true`<sup>2</sup>              |
-| `gpg.name`                         | Name associated with the generated GPG key                   | `gitops.example.com`             |
-| `gpg.comment`                      | Comment added with the generated GPG key                     | `flux SOPS secrets`              |
-| `gpg.overwriteKey`                 | Whether previously generated GPG key should be overwritten   | `false`<sup>3</sup>            |
-| `age.enabled`                      | Whether Age keys should be created                           | `false`                          |
-| `age.overwriteKey`                 | Whether previously generated GPG key should be overwritten   | `false`<sup>3</sup>            |
+The following table lists the configurable parameters of the sopSeed chart and their default values.
 
-> **1**: To balance speed and reliability of encryption key generation, set value of entropyWatermark between 2048 and 512.</br>
-> **2**: GPG is the default and, irrespective of the value of gpg.enabled, is always selected, unless age.enabled is set to true.</br>
-> **3**: If the previous key was used for data encryption, setting overwriteKey to true could make such data inaccessible.</br>
+| Parameter                         | Description                                                | Default                         |
+| --------------------------------- | ---------------------------------------------------------- | ------------------------------- |
+| `global.home`                     | Home directory of the default user; will set GNUPGHOME     | `/home/secops`                  |
+| `global.sopsMasterPubKey`         | SOPS master public key for the targeted k8s cluster        | `"YOUR SOPS MASTER PUBLIC KEY"` |
+| `image.registry`                  | sopSeed image registry                                     | `ghcr.io`                       |
+| `image.repository`                | sopSeed image name                                         | `ossfellow/sopseed`             |
+| `image.pullPolicy`                | sopSeed image pull policy                                  | `IfNotPresent`                  |
+| `image.PullSecrets`               | Image registry secret names as an array                    | `[]`                            |
+| `nameOverride`                    | Partially overrides the name of the chart                  | `""`                            |
+| `fullnameOverride`                | Fully overrides the name of the chart                      | `""`                            |
+| `resources`                       | CPU and Memory resource requests/limits                    | `{}`                            |
+| `initContainers.enabled`          | Whether init container should be executed                  | `true`                          |
+| `initContainers.entropyWatermark` | Minimum available entropy for GPG or Age key generation    | `1024`1                         |
+| `initContainers.timeToLive`       | Limiting the execution time, on slow nodes                 | `10m`                           |
+| `gpg.enabled`                     | Whether GPG keys should be created (default)               | `true`2                         |
+| `gpg.name`                        | Name associated with the generated GPG key                 | `gitops.example.com`            |
+| `gpg.comment`                     | Comment added with the generated GPG key                   | `sopSeed GPG key`               |
+| `gpg.overwriteKey`                | Whether previously generated GPG key should be overwritten | `false`3                        |
+| `age.enabled`                     | Whether Age keys should be created                         | `false`                         |
+| `age.overwriteKey`                | Whether previously generated GPG key should be overwritten | `false`3                        |
 
-Overwrite the default parameters using the `--set key=value[,key=value]` argument of `helm install`. For example:
-
-```console
-~> helm install flux-sops --set initContainers.entropyWatermark=512 gitfence --namespace flux-system --create-namespace --atomic
-```
-
-Alternatively, provide a YAML file that specifies the values for the parameters while installing the chart. For example:
-
-```console
-~> helm install flux-sops -f gpg-values.yaml gitfence --namespace flux-system --create-namespace --atomic
-```
-
-> **Tip**: You can use the default [values.yaml](https://github.com/masoudbahar/gitfence/blob/main/values.yaml)
+> **1**: To balance speed and reliability of encryption key generation, set value of entropyWatermark between 2048 and 512.
+> **2**: GPG is the default and, irrespective of the value of gpg.enabled, is always selected, unless age.enabled is set to true.
+> **3**: If the previous key was used for data encryption, setting overwriteKey to true could make such data inaccessible.
