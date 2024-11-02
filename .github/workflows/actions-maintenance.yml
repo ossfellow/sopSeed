@@ -25,7 +25,7 @@ jobs:
           REPO="${{ github.repository }}"
 
           # Use input retention days for manual runs, default for scheduled
-          if [[ "${{ github.event.name }}" == "workflow_dispatch" ]]; then
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             RETENTION_DAYS="${{ github.event.inputs.retention_days }}"
           else
             RETENTION_DAYS=90
@@ -36,16 +36,18 @@ jobs:
           # For complete cleanup (RETENTION_DAYS=0), adjust the cutoff date
           if [ "${RETENTION_DAYS}" = "0" ]; then
             echo "Performing complete cleanup..."
-            CUTOFF=$(date -d "9999 days ago" +%s)  # Far in the past
+            CUTOFF=$(date -d "9999 days ago" +%Y-%m-%d)
           else
-            CUTOFF=$(date -d "${RETENTION_DAYS} days ago" +%s)
+            CUTOFF=$(date -d "${RETENTION_DAYS} days ago" +%Y-%m-%d)
           fi
 
+          echo "Cutoff date: ${CUTOFF}"
           echo "Fetching workflow runs..."
           PAGE=1
           RUNS_TO_DELETE=()
 
           while true; do
+            echo "Fetching page ${PAGE}..."
             RESPONSE=$(curl -s -H "Accept: application/vnd.github.v3+json" \
               -H "Authorization: token ${TOKEN}" \
               "https://api.github.com/repos/${REPO}/actions/runs?per_page=100&page=${PAGE}")
@@ -75,13 +77,15 @@ jobs:
             echo "Processing page ${PAGE}..."
             PAGE_RUNS=$(echo "${RESPONSE}" | jq -r --arg CUTOFF "$CUTOFF" '.workflow_runs[] | 
               select(.created_at != null) | 
-              select((.created_at | fromdateiso8601) < ($CUTOFF | tonumber)) | 
+              select((.created_at[0:10] < $CUTOFF)) | 
               .id')
 
             if [ -z "${PAGE_RUNS}" ]; then
+              echo "No more runs to process on this page"
               break
             fi
 
+            echo "Found runs to delete on page ${PAGE}"
             while IFS= read -r run_id; do
               if [ ! -z "$run_id" ]; then
                 RUNS_TO_DELETE+=("$run_id")
@@ -91,6 +95,7 @@ jobs:
             # Check if we've processed all runs
             RUNS_COUNT=$(echo "${RESPONSE}" | jq -r '.workflow_runs | length')
             if [ "$RUNS_COUNT" -lt 100 ]; then
+              echo "Reached last page"
               break
             fi
 
