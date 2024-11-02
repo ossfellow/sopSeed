@@ -119,7 +119,7 @@ jobs:
           HELM_EXPERIMENTAL_OCI: 1
         run: |
           echo ${{ secrets.GITHUB_TOKEN }} | helm registry login ghcr.io --username ${{ github.actor }} --password-stdin
-          helm push .helm-charts/sopSeed-${CHART_VERSION}.tgz oci://ghcr.io/${{ github.repository_owner }}/sopseed-chart
+          helm push .helm-charts/sopseed-${CHART_VERSION}.tgz oci://ghcr.io/${{ github.repository_owner }}/sopseed-chart
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
