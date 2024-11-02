@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "sopSeed.name" . }}-entropy-script
+  name: {{ .Release.Name | lower }}-entropy-script
   namespace: {{ .Release.Namespace }}
 data:
   entropy.sh: |-
@@ -25,7 +25,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "sopSeed.name" . }}-crypto-script
+  name: {{ .Release.Name | lower }}-crypto-script
   namespace: {{ .Release.Namespace }}
 data:
   sopSeed.sh: |-
@@ -41,7 +41,7 @@ data:
 
     # Check cluster permissions
     printf "%s\n" "Checking cluster permissions..."
-    printf "%s" "Can {{ include "sopSeed.name" . }} create secrets in {{ .Release.Namespace }} namespace? "
+    printf "%s" "Can {{ .Release.Name | lower }} create secrets in {{ .Release.Namespace }} namespace? "
     if ! kubectl auth can-i create secrets --namespace {{ .Release.Namespace }}; then
       logger -s "Insufficient permissions; cannot create secrets!"
       exit 1
@@ -138,7 +138,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "sopSeed.name" . }}-gpg-conf
+  name: {{ .Release.Name | lower }}-gpg-conf
   namespace: {{ .Release.Namespace }}
 data:
   gpg.conf: |-
@@ -177,7 +177,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "sopSeed.name" . }}-gpg-batch
+  name: {{ .Release.Name | lower }}-gpg-batch
   namespace: {{ .Release.Namespace }}
 data:
   gpg.batch: |-
@@ -195,4 +195,3 @@ data:
     Preferences: SHA512 SHA384 SHA256 SHA224 AES256 AES ZLIB BZIP2 ZIP Uncompressed
     %commit
 ---
-
