@@ -2,7 +2,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ include "sopSeed.name" . }}-acct
+  name: {{ .Release.Name | lower }}-acct
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "sopSeed.labels" . | nindent 4 }}
@@ -14,16 +14,16 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ include "sopSeed.name" . }}-acct
+  name: {{ .Release.Name | lower }}-acct
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "sopSeed.labels" . | nindent 4 }}
 subjects:
 - kind: ServiceAccount
-  name: {{ include "sopSeed.name" . }}-acct
+  name: {{ .Release.Name | lower }}-acct
   namespace: {{ .Release.Namespace }}
 roleRef:
   kind: Role
-  name: {{ include "sopSeed.name" . }}-acct
+  name: {{ .Release.Name | lower }}-acct
   apiGroup: rbac.authorization.k8s.io
 {{- end }}
