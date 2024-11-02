@@ -36,12 +36,13 @@ jobs:
           # For complete cleanup (RETENTION_DAYS=0), adjust the cutoff date
           if [ "${RETENTION_DAYS}" = "0" ]; then
             echo "Performing complete cleanup..."
-            CUTOFF=$(date -d "9999 days ago" +%Y-%m-%d)
+            CUTOFF=$(date -u -d "9999 days ago" +%s)  # Unix timestamp
           else
-            CUTOFF=$(date -d "${RETENTION_DAYS} days ago" +%Y-%m-%d)
+            CUTOFF=$(date -u -d "${RETENTION_DAYS} days ago" +%s)  # Unix timestamp
           fi
 
-          echo "Cutoff date: ${CUTOFF}"
+          CUTOFF_HUMAN=$(date -u -d "@$CUTOFF" "+%Y-%m-%d %H:%M:%S UTC")
+          echo "Cutoff date: ${CUTOFF_HUMAN} (${CUTOFF})"
           echo "Fetching workflow runs..."
           PAGE=1
           RUNS_TO_DELETE=()
@@ -71,6 +72,12 @@ jobs:
             if [ "$TOTAL_COUNT" = "0" ]; then
               echo "No workflow runs found"
               exit 0
+            fi
+
+            # Debug output for first page
+            if [ "$PAGE" = "1" ]; then
+              echo "First run date from response:"
+              echo "${RESPONSE}" | jq -r '.workflow_runs[0].created_at'
             fi
 
             # Process workflow runs from this page
