@@ -33,7 +33,7 @@ spec:
       restartPolicy: Never
       {{- if .Values.initContainers.enabled }}
       initContainers:
-        - name: {{ .Chart.Name }}-init
+        - name: {{ include "sopSeed.name" . }}-init
           image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["/bin/sh"]
@@ -48,7 +48,7 @@ spec:
               fi
       {{- end }}
       containers:
-        - name: {{ .Chart.Name }}
+        - name: {{ include "sopSeed.name" . }}
           image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
