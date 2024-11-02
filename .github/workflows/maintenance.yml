@@ -1,0 +1,73 @@
+name: Maintenance
+
+on:
+  schedule:
+    - cron: "0 0 1 * *" # Monthly cleanup
+  workflow_dispatch:
+    inputs:
+      run_package_cleanup:
+        description: "Run package cleanup"
+        type: boolean
+        default: true
+      run_actions_cleanup:
+        description: "Run actions cleanup"
+        type: boolean
+        default: true
+      keep_versions:
+        description: "Number of versions to keep (0 for complete cleanup)"
+        type: number
+        default: 1
+        required: false
+      artifact_type:
+        description: "Type of artifact to clean (image, chart, or all)"
+        type: choice
+        options:
+          - all
+          - image
+          - chart
+        default: "all"
+        required: false
+      retention_days:
+        description: "Number of days to retain action runs (0 for complete cleanup)"
+        type: number
+        default: 90
+        required: false
+
+jobs:
+  package-cleanup:
+    if: inputs.run_package_cleanup || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - name: Run package cleanup
+        env:
+          KEEP_VERSIONS: ${{ inputs.keep_versions || 1 }}
+          ARTIFACT_TYPE: ${{ inputs.artifact_type || 'all' }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cleanup_package() {
+            local REPO=$1
+            echo "Processing ${REPO}..."
+
+            PACKAGE_CHECK=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: token ${TOKEN}" \
+              "https://api.github.com/user/packages/container/${REPO}")
+
+            if [ "$PACKAGE_CHECK" = "404" ]; then
+              echo "Package ${REPO} does not exist, skipping..."
+              return
+            fi
+
+            PACKAGES=$(curl -s -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: token ${TOKEN}" \
+              "https://api.github.com/user/packages/container/${REPO}/versions")
+
+            if [ -z "$PACKAGES" ] || [ "$PACKAGES" = "null" ]; then
+              echo "No versions found for ${REPO}"
+              return
+            fi
+
+            echo "API Response structure
