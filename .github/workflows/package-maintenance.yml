@@ -16,7 +16,7 @@ jobs:
       - name: Run cleanup script
         run: |
           USERNAME="ossfellow"
-          REPO="gitfence"
+          REPO="sopseed"
           TOKEN="${{ secrets.GITHUB_TOKEN }}"
           echo "Fetching package versions..."
           PACKAGES=$(curl -s -H "Accept: application/vnd.github.v3+json" \
