@@ -111,8 +111,7 @@ jobs:
           HELM_EXPERIMENTAL_OCI: 1
         run: |
           echo ${{ secrets.GITHUB_TOKEN }} | helm registry login ghcr.io --username ${{ github.actor }} --password-stdin
-          echo "Repository Owner: ${{ github.repository_owner }}"
-          helm push .helm-charts/sopSeed-${CHART_VERSION}.tgz oci://ghcr.io/${{ github.repository_owner }}
+          helm push .helm-charts/sopseed-${{ env.CHART_VERSION }}.tgz oci://ghcr.io/${{ github.repository_owner }}
 
       - name: Create GitHub Release
         id: create_release
@@ -131,7 +130,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: .helm-charts/sopSeed-${{ env.CHART_VERSION }}.tgz
-          asset_name: sopSeed-${{ env.CHART_VERSION }}.tgz
+          asset_path: .helm-charts/sopseed-${{ env.CHART_VERSION }}.tgz
+          asset_name: sopseed-${{ env.CHART_VERSION }}.tgz
           asset_content_type: application/gzip
 
