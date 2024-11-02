@@ -45,18 +45,34 @@ jobs:
             local REPO=$1
             echo "Processing ${REPO}..."
             
+            # Check if package exists first
+            PACKAGE_CHECK=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: token ${TOKEN}" \
+              "https://api.github.com/user/packages/container/${REPO}")
+
+            if [ "$PACKAGE_CHECK" = "404" ]; then
+              echo "Package ${REPO} does not exist, skipping..."
+              return
+            fi
+            
             PACKAGES=$(curl -s -H "Accept: application/vnd.github.v3+json" \
               -H "Authorization: token ${TOKEN}" \
               "https://api.github.com/user/packages/container/${REPO}/versions")
 
             if [ -z "$PACKAGES" ] || [ "$PACKAGES" = "null" ]; then
-              echo "No packages found for ${REPO}"
+              echo "No versions found for ${REPO}"
               return
             fi
 
-            VERSIONS=$(echo ${PACKAGES} | jq -r '.[] | select(.metadata.container.tags != null) | [.id, (.metadata.container.tags[0] // "latest"), .created_at] | @tsv')
-            if [ -z "$VERSIONS" ]; then
-              echo "No versions to process for ${REPO}"
+            # Debug output to see the API response
+            echo "API Response structure for ${REPO}:"
+            echo "${PACKAGES}" | jq '.'
+
+            # Fixed jq command to handle the correct JSON structure
+            VERSIONS=$(echo "${PACKAGES}" | jq -r '.[] | select(.metadata.container != null) | select(.metadata.container.tags != null) | [.id, (.metadata.container.tags[0] // "latest"), .created_at] | @tsv')
+            if [ -z "$VERSIONS" ] || [ "$VERSIONS" = "null" ]; then
+              echo "No tagged versions found for ${REPO}"
               return
             fi
 
@@ -64,8 +80,21 @@ jobs:
               echo "Performing complete cleanup of ${REPO}..."
               TO_DELETE=$(echo "${VERSIONS}" | awk '{print $1}')
             else
+              # Count total versions first
+              TOTAL_VERSIONS=$(echo "${VERSIONS}" | wc -l)
+              if [ "$TOTAL_VERSIONS" -le "$KEEP_VERSIONS" ]; then
+                echo "Found ${TOTAL_VERSIONS} versions, keeping all as it's <= ${KEEP_VERSIONS}"
+                return
+              fi
               TO_DELETE=$(echo "${VERSIONS}" | sort -k3r | tail -n +$((KEEP_VERSIONS + 1)) | awk '{print $1}')
             fi
+
+            if [ -z "$TO_DELETE" ]; then
+              echo "No versions to delete for ${REPO}"
+              return
+            fi
+
+            echo "Found $(echo "$TO_DELETE" | wc -l) versions to delete in ${REPO}"
 
             for VERSION in ${TO_DELETE}; do
               echo "Deleting version ${VERSION} from ${REPO}..."
