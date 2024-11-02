@@ -1,9 +1,24 @@
-name: Cleanup Old OCI Images
+name: Cleanup OCI Artifacts
 
 on:
   schedule:
     - cron: "0 0 30 3,6,9,12 *"
-  workflow_dispatch: # Allow manual runs
+  workflow_dispatch:
+    inputs:
+      keep_versions:
+        description: 'Number of versions to keep (0 for complete cleanup)'
+        required: true
+        default: '1'
+        type: string
+      artifact_type:
+        description: 'Type of artifact to clean (image, chart, or all)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - image
+          - chart
 
 jobs:
   cleanup:
@@ -15,39 +30,67 @@ jobs:
     steps:
       - name: Run cleanup script
         run: |
-          USERNAME="ossfellow"
-          REPO="sopseed"
           TOKEN="${{ secrets.GITHUB_TOKEN }}"
-          echo "Fetching package versions..."
-          PACKAGES=$(curl -s -H "Accept: application/vnd.github.v3+json" \
-            -H "Authorization: token ${TOKEN}" \
-            "https://api.github.com/user/packages/container/${REPO}/versions")
-
-          if [ -z "$PACKAGES" ] || [ "$PACKAGES" = "null" ]; then
-            echo "No packages found or error in API response"
-            exit 0
+          
+          # Use input versions for manual runs, default for scheduled
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            KEEP_VERSIONS="${{ github.event.inputs.keep_versions }}"
+            ARTIFACT_TYPE="${{ github.event.inputs.artifact_type }}"
+          else
+            KEEP_VERSIONS=1
+            ARTIFACT_TYPE="all"
           fi
 
-          echo "Processing versions..."
-          VERSIONS=$(echo ${PACKAGES} | jq -r '.[] | select(.metadata.container.tags != null) | [.id, (.metadata.container.tags[0] // "latest"), .created_at] | @tsv')
-          if [ -z "$VERSIONS" ]; then
-            echo "No versions to process"
-            exit 0
-          fi
-
-          TO_DELETE=$(echo "${VERSIONS}" | sort -k3r | tail -n +2 | awk '{print $1}')
-          echo "Will delete all versions except the most recent..."
-
-          for VERSION in ${TO_DELETE}; do
-            echo "Deleting version ${VERSION}..."
-            RESPONSE=$(curl -X DELETE -s -o /dev/null -w "%{http_code}" \
-              -H "Accept: application/vnd.github.v3+json" \
+          cleanup_package() {
+            local REPO=$1
+            echo "Processing ${REPO}..."
+            
+            PACKAGES=$(curl -s -H "Accept: application/vnd.github.v3+json" \
               -H "Authorization: token ${TOKEN}" \
-              "https://api.github.com/user/packages/container/${REPO}/versions/${VERSION}")
+              "https://api.github.com/user/packages/container/${REPO}/versions")
 
-            if [ "$RESPONSE" = "204" ] || [ "$RESPONSE" = "200" ]; then
-              echo "Successfully deleted version ${VERSION}"
-            else
-              echo "Failed to delete version ${VERSION} (HTTP ${RESPONSE})"
+            if [ -z "$PACKAGES" ] || [ "$PACKAGES" = "null" ]; then
+              echo "No packages found for ${REPO}"
+              return
             fi
-          done
+
+            VERSIONS=$(echo ${PACKAGES} | jq -r '.[] | select(.metadata.container.tags != null) | [.id, (.metadata.container.tags[0] // "latest"), .created_at] | @tsv')
+            if [ -z "$VERSIONS" ]; then
+              echo "No versions to process for ${REPO}"
+              return
+            fi
+
+            if [ "${KEEP_VERSIONS}" = "0" ]; then
+              echo "Performing complete cleanup of ${REPO}..."
+              TO_DELETE=$(echo "${VERSIONS}" | awk '{print $1}')
+            else
+              TO_DELETE=$(echo "${VERSIONS}" | sort -k3r | tail -n +$((KEEP_VERSIONS + 1)) | awk '{print $1}')
+            fi
+
+            for VERSION in ${TO_DELETE}; do
+              echo "Deleting version ${VERSION} from ${REPO}..."
+              RESPONSE=$(curl -X DELETE -s -o /dev/null -w "%{http_code}" \
+                -H "Accept: application/vnd.github.v3+json" \
+                -H "Authorization: token ${TOKEN}" \
+                "https://api.github.com/user/packages/container/${REPO}/versions/${VERSION}")
+
+              if [ "$RESPONSE" = "204" ] || [ "$RESPONSE" = "200" ]; then
+                echo "Successfully deleted version ${VERSION} from ${REPO}"
+              else
+                echo "Failed to delete version ${VERSION} from ${REPO} (HTTP ${RESPONSE})"
+              fi
+            done
+          }
+
+          case "${ARTIFACT_TYPE}" in
+            "image")
+              cleanup_package "sopseed"
+              ;;
+            "chart")
+              cleanup_package "sopseed-chart"
+              ;;
+            "all")
+              cleanup_package "sopseed"
+              cleanup_package "sopseed-chart"
+              ;;
+          esac
