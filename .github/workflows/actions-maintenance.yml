@@ -1,0 +1,58 @@
+name: Cleanup Old Actions Runs
+
+on:
+  schedule:
+    - cron: "0 0 1 * *" # Run monthly on the 1st
+  workflow_dispatch: # Allow manual runs
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write # Required to delete workflow runs
+      contents: read # Required to read repository
+
+    steps:
+      - name: Run cleanup script
+        run: |
+          TOKEN="${{ secrets.GITHUB_TOKEN }}"
+          REPO="${{ github.repository }}"
+          RETENTION_DAYS=90
+
+          echo "Fetching workflow runs..."
+          RUNS=$(curl -s -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${TOKEN}" \
+            "https://api.github.com/repos/${REPO}/actions/runs")
+
+          if [ -z "$RUNS" ] || [ "$RUNS" = "null" ]; then
+            echo "No runs found or error in API response"
+            exit 0
+          fi
+
+          # Calculate cutoff date (90 days ago)
+          CUTOFF=$(date -d "${RETENTION_DAYS} days ago" +%s)
+
+          echo "Processing runs..."
+          TO_DELETE=$(echo ${RUNS} | jq -r --arg CUTOFF "$CUTOFF" \
+            '.workflow_runs[] | select(.created_at | fromdateiso8601 < ($CUTOFF | tonumber)) | .id')
+
+          if [ -z "$TO_DELETE" ]; then
+            echo "No old runs to delete"
+            exit 0
+          fi
+
+          echo "Will delete runs older than ${RETENTION_DAYS} days..."
+
+          for RUN_ID in ${TO_DELETE}; do
+            echo "Deleting run ${RUN_ID}..."
+            RESPONSE=$(curl -X DELETE -s -o /dev/null -w "%{http_code}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: token ${TOKEN}" \
+              "https://api.github.com/repos/${REPO}/actions/runs/${RUN_ID}")
+
+            if [ "$RESPONSE" = "204" ] || [ "$RESPONSE" = "200" ]; then
+              echo "Successfully deleted run ${RUN_ID}"
+            else
+              echo "Failed to delete run ${RUN_ID} (HTTP ${RESPONSE})"
+            fi
+          done

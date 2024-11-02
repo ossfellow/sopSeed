@@ -53,11 +53,11 @@ jobs:
       - name: Set Target OCI Registry
         run: |
           if ${{ matrix.image.publish-on-ghcr }} && ! ${{ matrix.image.publish-on-dockerhub }}; then
-            echo "IMAGES=ghcr.io/${{ github.repository_owner }}/images/${{ matrix.image.name }}" >> $GITHUB_ENV
+            echo "IMAGES=ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}" >> $GITHUB_ENV
           elif ! ${{ matrix.image.publish-on-ghcr }} && ${{ matrix.image.publish-on-dockerhub }}; then
-            echo "IMAGES=${{ github.repository_owner }}/images/${{ matrix.image.name }}" >> $GITHUB_ENV
+            echo "IMAGES=${{ github.repository_owner }}/${{ matrix.image.name }}" >> $GITHUB_ENV
           elif ${{ matrix.image.publish-on-ghcr }} && ${{ matrix.image.publish-on-dockerhub }}; then
-            echo "IMAGES=${{ github.repository_owner }}/images/${{ matrix.image.name }},ghcr.io/${{ github.repository_owner }}/images/${{ matrix.image.name }}" >> $GITHUB_ENV
+            echo "IMAGES=${{ github.repository_owner }}/${{ matrix.image.name }},ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}" >> $GITHUB_ENV
           fi
 
       - name: Docker Metadata
@@ -138,8 +138,8 @@ jobs:
       # - name: Push SBOM and Provenance to OCI Registry
       #   if: ${{ matrix.image.build-attestation && github.event_name != 'pull_request' }}
       #   run: |
-      #     cosign attach sbom --sbom sbom-${{ matrix.image.name }}-spdx.json oci://ghcr.io/${{ github.repository_owner }}/images/${{ matrix.image.name }}
-      #     cosign attach attestation --attestation provenance-${{ matrix.image.name }}.json oci://ghcr.io/${{ github.repository_owner }}/images/${{ matrix.image.name }}
+      #     cosign attach sbom --sbom sbom-${{ matrix.image.name }}-spdx.json oci://ghcr.io/${{ github.repository_owner }}${{ matrix.image.name }}
+      #     cosign attach attestation --attestation provenance-${{ matrix.image.name }}.json oci://ghcr.io/${{ github.repository_owner }}${{ matrix.image.name }}
 
       - name: Update DockerHub Repository Description
         if: ${{ matrix.image.publish-on-dockerhub && github.event_name != 'pull_request' }}
