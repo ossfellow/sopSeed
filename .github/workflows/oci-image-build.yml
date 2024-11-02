@@ -37,9 +37,18 @@ jobs:
       - name: Set Custom Variables
         id: custom
         run: |
-          echo "BUILDX_DATE=$(date -u +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
-          echo "BUILD_VERSION=$(date -u +'%Y%m%d.%H%M%S')" >> $GITHUB_ENV
-          echo "SHORT_SHA=${GITHUB_SHA::8}" >> $GITHUB_ENV
+          # Get base version
+          GIT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$GIT_TAG" ]; then
+            BASE_VERSION=${GIT_TAG#v}
+          elif [ -f "chart/Chart.yaml" ]; then
+            BASE_VERSION=$(grep '^version:' chart/Chart.yaml | cut -d' ' -f2)
+          else
+            BASE_VERSION=$(date -u +'%Y%m%d')
+          fi
+
+          # Add build metadata
+          echo "BUILD_VERSION=${BASE_VERSION}+sha.${GITHUB_SHA::8}" >> $GITHUB_ENV
 
       - name: Set Target OCI Registry
         run: |
@@ -70,7 +79,7 @@ jobs:
           labels: |
             org.opencontainers.image.title=sopSeed
             org.opencontainers.image.authors=ossfellow@users.noreply.github.com
-            org.opencontainers.image.description=sopSeed generates compact, strong, GPG (ed25519/cv25519), or Age (X25519) keys, for GitOps, and other use cases.
+            org.opencontainers.image.description="sopSeed generates compact, strong, GPG (ed25519/cv25519), or Age (X25519) keys, for GitOps, and other use cases."
             org.opencontainers.image.documentation=${{ github.event.repository.html_url }}/helpers/README.md
             org.opencontainers.image.url=${{ github.event.repository.html_url }}
             org.opencontainers.image.source=${{ github.event.repository.html_url }}/Dockerfile
