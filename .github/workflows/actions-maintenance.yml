@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: "0 0 1 * *" # Run monthly on the 1st
   workflow_dispatch: # Allow manual runs
+    inputs:
+      retention_days:
+        description: 'Number of days to retain (0 for complete cleanup)'
+        required: true
+        default: '90'
+        type: string
 
 jobs:
   cleanup:
@@ -17,7 +23,23 @@ jobs:
         run: |
           TOKEN="${{ secrets.GITHUB_TOKEN }}"
           REPO="${{ github.repository }}"
-          RETENTION_DAYS=90
+          
+          # Use input retention days for manual runs, default for scheduled
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            RETENTION_DAYS="${{ github.event.inputs.retention_days }}"
+          else
+            RETENTION_DAYS=90
+          fi
+
+          echo "Retention period: ${RETENTION_DAYS} days"
+          
+          # For complete cleanup (RETENTION_DAYS=0), adjust the cutoff date
+          if [ "${RETENTION_DAYS}" = "0" ]; then
+            echo "Performing complete cleanup..."
+            CUTOFF=$(date -d "9999 days ago" +%s)  # Far in the past
+          else
+            CUTOFF=$(date -d "${RETENTION_DAYS} days ago" +%s)
+          fi
 
           echo "Fetching all workflow runs..."
           PAGE=1
@@ -41,9 +63,6 @@ jobs:
             echo "No workflow runs found"
             exit 0
           fi
-
-          # Calculate cutoff date (90 days ago)
-          CUTOFF=$(date -d "${RETENTION_DAYS} days ago" +%s)
 
           echo "Processing runs from all workflows..."
           TO_DELETE=$(echo "${ALL_RUNS[@]}" | jq -r --arg CUTOFF "$CUTOFF" \
