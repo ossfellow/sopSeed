@@ -38,7 +38,7 @@ helm upgrade --install \
   --namespace flux-system \
   --create-namespace \
   --values https://raw.githubusercontent.com/ossfellow/sopSeed/main/chart/values.yaml \
-  oci://ghcr.io/ossfellow/sopSeed:{version} \
+  oci://ghcr.io/ossfellow/helm/sopseed:{version} \
   --dependency-update \
   --atomic
 ```
@@ -56,8 +56,8 @@ You can pass the `global.sopsMasterPubKey` value to the helm chart installation 
 To verify the authenticity of the image using Docker's SBOM and provenance features:
 
 ```console
-docker sbom ghcr.io/ossfellow/sopSeed:{version}
-docker trust inspect --pretty ghcr.io/ossfellow/sopSeed:{version}
+docker sbom ghcr.io/ossfellow/images/sopSeed:{version}
+docker trust inspect --pretty ghcr.io/ossfellow/images/sopSeed:{version}
 ```
 
 ## Using the sopSeed OCI Image Directly
@@ -73,7 +73,7 @@ The following table lists the configurable parameters of the sopSeed chart and t
 | `global.home`                      | Home directory of the default user; will set GNUPGHOME       | `/home/secops`                   |
 | `global.sopsMasterPubKey`          | SOPS master public key for the targeted k8s cluster          | `"YOUR SOPS MASTER PUBLIC KEY"`  |
 | `image.registry`                   | sopSeed image registry                                       | `ghcr.io`                        |
-| `image.repository`                 | sopSeed image name                                           | `ossfellow/sopSeed`              |
+| `image.repository`                 | sopSeed image name                                           | `ossfellow/images/sopseed`       |
 | `image.pullPolicy`                 | sopSeed image pull policy                                    | `IfNotPresent`                   |
 | `image.PullSecrets`                | Image registry secret names as an array                      | `[]`                             |
 | `nameOverride`                     | Partially overrides the name of the chart                    | `""`                             |
