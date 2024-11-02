@@ -50,6 +50,8 @@ jobs:
           # Determine the target branch
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             TARGET_BRANCH="${{ github.base_ref }}"
+            # Fetch the target branch
+            git fetch origin ${TARGET_BRANCH}:${TARGET_BRANCH}
           else
             TARGET_BRANCH="main"
           fi
