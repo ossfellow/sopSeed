@@ -95,5 +95,7 @@ The following table lists the configurable parameters of the sopSeed chart and t
 | `age.overwriteKey`                | Whether previously generated GPG key should be overwritten | `false`3                        |
 
 > **1**: To balance speed and reliability of encryption key generation, set value of entropyWatermark between 2048 and 512.
+> 
 > **2**: GPG is the default and, irrespective of the value of gpg.enabled, is always selected, unless age.enabled is set to true.
+> 
 > **3**: If the previous key was used for data encryption, setting overwriteKey to true could make such data inaccessible.
