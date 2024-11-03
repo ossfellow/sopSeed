@@ -13,221 +13,50 @@ on:
         description: "Run actions cleanup"
         type: boolean
         default: true
+      packages:
+        description: "Packages to clean (comma-separated, overrides DEFAULT_PACKAGES)"
+        type: string
+        required: false
       keep_versions:
-        description: "Number of versions to keep (0 for complete cleanup, default: 3)"
+        description: "Number of package versions to keep"
         type: number
         default: 3
         required: false
       artifact_type:
-        description: "Type of artifact to clean (image, chart, or all)"
+        description: "Type of artifact to clean"
         type: choice
         options:
-          - all
-          - image
-          - chart
-        default: "all"
+          - container
+          - helm
+        default: "container"
         required: false
       retention_days:
-        description: "Number of days to retain action runs (0 for complete cleanup)"
+        description: "Days to retain action runs"
         type: number
         default: 90
+        required: false
+      workflows:
+        description: 'Workflows to clean (comma-separated or "all")'
+        type: string
+        default: "all"
         required: false
 
 jobs:
   package-cleanup:
     if: inputs.run_package_cleanup || github.event_name == 'schedule'
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-      contents: read
-    steps:
-      - name: Run package cleanup
-        env:
-          KEEP_VERSIONS: ${{ inputs.keep_versions || 3 }}
-          ARTIFACT_TYPE: ${{ inputs.artifact_type || 'all' }}
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          cleanup_package() {
-            local REPO=$1
-            echo "Processing ${REPO}..."
-            
-            PACKAGE_CHECK=$(curl -s -o /dev/null -w "%{http_code}" \
-              -H "Accept: application/vnd.github.v3+json" \
-              -H "Authorization: token ${TOKEN}" \
-              "https://api.github.com/user/packages/container/${REPO}")
-
-            if [ "$PACKAGE_CHECK" = "404" ]; then
-              echo "Package ${REPO} does not exist, skipping..."
-              return
-            fi
-            
-            PACKAGES=$(curl -s -H "Accept: application/vnd.github.v3+json" \
-              -H "Authorization: token ${TOKEN}" \
-              "https://api.github.com/user/packages/container/${REPO}/versions")
-
-            if [ -z "$PACKAGES" ] || [ "$PACKAGES" = "null" ]; then
-              echo "No versions found for ${REPO}"
-              return
-            fi
-
-            echo "API Response structure for ${REPO}:"
-            echo "${PACKAGES}" | jq '.'
-
-            VERSIONS=$(echo "${PACKAGES}" | jq -r '.[] | select(.metadata.container != null) | select(.metadata.container.tags != null) | [.id, (.metadata.container.tags[0] // "latest"), .created_at] | @tsv')
-            if [ -z "$VERSIONS" ] || [ "$VERSIONS" = "null" ]; then
-              echo "No tagged versions found for ${REPO}"
-              return
-            fi
-
-            if [ "${KEEP_VERSIONS}" = "0" ]; then
-              echo "Performing complete cleanup of ${REPO}..."
-              TO_DELETE=$(echo "${VERSIONS}" | awk '{print $1}')
-            else
-              TOTAL_VERSIONS=$(echo "${VERSIONS}" | wc -l)
-              if [ "$TOTAL_VERSIONS" -le "$KEEP_VERSIONS" ]; then
-                echo "Found ${TOTAL_VERSIONS} versions, keeping all as it's <= ${KEEP_VERSIONS}"
-                return
-              fi
-              TO_DELETE=$(echo "${VERSIONS}" | sort -k3r | tail -n +$((KEEP_VERSIONS + 1)) | awk '{print $1}')
-            fi
-
-            if [ -z "$TO_DELETE" ]; then
-              echo "No versions to delete for ${REPO}"
-              return
-            fi
-
-            echo "Found $(echo "$TO_DELETE" | wc -l) versions to delete in ${REPO}"
-
-            for VERSION in ${TO_DELETE}; do
-              echo "Deleting version ${VERSION} from ${REPO}..."
-              RESPONSE=$(curl -X DELETE -s -o /dev/null -w "%{http_code}" \
-                -H "Accept: application/vnd.github.v3+json" \
-                -H "Authorization: token ${TOKEN}" \
-                "https://api.github.com/user/packages/container/${REPO}/versions/${VERSION}")
-
-              if [ "$RESPONSE" = "204" ] || [ "$RESPONSE" = "200" ]; then
-                echo "Successfully deleted version ${VERSION} from ${REPO}"
-              else
-                echo "Failed to delete version ${VERSION} from ${REPO} (HTTP ${RESPONSE})"
-              fi
-            done
-          }
-
-          case "${ARTIFACT_TYPE}" in
-            "image")
-              cleanup_package "sopseed"
-              ;;
-            "chart")
-              cleanup_package "sopseed-chart"
-              ;;
-            "all")
-              cleanup_package "sopseed"
-              cleanup_package "sopseed-chart"
-              ;;
-          esac
+    uses: ossfellow/.github/.github/workflows/package-maintenance.yml@main
+    with:
+      packages: ${{ inputs.packages || 'sopseed,sopseed-chart' }}
+      keep_versions: ${{ inputs.keep_versions || 3 }}
+      artifact_type: ${{ inputs.artifact_type || 'container' }}
+    secrets:
+      token: ${{ secrets.GITHUB_TOKEN }}
 
   actions-cleanup:
     if: inputs.run_actions_cleanup || github.event_name == 'schedule'
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write
-      contents: read
-    steps:
-      - name: Run actions cleanup
-        env:
-          RETENTION_DAYS: ${{ inputs.retention_days || 90 }}
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-        run: |
-          echo "Retention period: ${RETENTION_DAYS} days"
-          
-          if [ "${RETENTION_DAYS}" = "0" ]; then
-            echo "Performing complete cleanup..."
-            CUTOFF=$(date -u -d "9999 days ago" +%s)
-          else
-            CUTOFF=$(date -u -d "${RETENTION_DAYS} days ago" +%s)
-          fi
-
-          CUTOFF_HUMAN=$(date -u -d "@$CUTOFF" "+%Y-%m-%d %H:%M:%S UTC")
-          echo "Cutoff date: ${CUTOFF_HUMAN} (${CUTOFF})"
-          echo "Fetching workflow runs..."
-          PAGE=1
-          RUNS_TO_DELETE=()
-
-          while true; do
-            echo "Fetching page ${PAGE}..."
-            RESPONSE=$(curl -s -H "Accept: application/vnd.github.v3+json" \
-              -H "Authorization: token ${TOKEN}" \
-              "https://api.github.com/repos/${REPO}/actions/runs?per_page=100&page=${PAGE}")
-
-            if ! echo "${RESPONSE}" | jq -e . >/dev/null 2>&1; then
-              echo "Error: Invalid JSON response from API"
-              echo "Response: ${RESPONSE}"
-              exit 1
-            fi
-
-            ERROR_MESSAGE=$(echo "${RESPONSE}" | jq -r '.message // empty')
-            if [ ! -z "$ERROR_MESSAGE" ]; then
-              echo "API Error: ${ERROR_MESSAGE}"
-              exit 1
-            fi
-
-            TOTAL_COUNT=$(echo "${RESPONSE}" | jq -r '.total_count // 0')
-            if [ "$TOTAL_COUNT" = "0" ]; then
-              echo "No workflow runs found"
-              exit 0
-            fi
-
-            if [ "$PAGE" = "1" ]; then
-              echo "First run date from response:"
-              echo "${RESPONSE}" | jq -r '.workflow_runs[0].created_at'
-            fi
-
-            echo "Processing page ${PAGE}..."
-            PAGE_RUNS=$(echo "${RESPONSE}" | jq -r --arg CUTOFF "$CUTOFF" '.workflow_runs[] | 
-              select(.created_at != null) | 
-              select((.created_at | fromdateiso8601) < ($CUTOFF | tonumber)) | 
-              [.id, .created_at] | @tsv')
-
-            if [ -z "${PAGE_RUNS}" ]; then
-              echo "No more runs to process on this page"
-              break
-            fi
-
-            echo "Found runs to delete on page ${PAGE}:"
-            while IFS=$'\t' read -r run_id created_at; do
-              if [ ! -z "$run_id" ]; then
-                echo "Run ${run_id} created at ${created_at}"
-                RUNS_TO_DELETE+=("$run_id")
-              fi
-            done <<< "${PAGE_RUNS}"
-
-            RUNS_COUNT=$(echo "${RESPONSE}" | jq -r '.workflow_runs | length')
-            if [ "$RUNS_COUNT" -lt 100 ]; then
-              echo "Reached last page"
-              break
-            fi
-
-            PAGE=$((PAGE + 1))
-          done
-
-          TOTAL_TO_DELETE=${#RUNS_TO_DELETE[@]}
-          if [ "$TOTAL_TO_DELETE" -eq 0 ]; then
-            echo "No runs found to delete"
-            exit 0
-          fi
-
-          echo "Found ${TOTAL_TO_DELETE} runs to delete"
-          for RUN_ID in "${RUNS_TO_DELETE[@]}"; do
-            echo "Deleting run ${RUN_ID}..."
-            RESPONSE=$(curl -X DELETE -s -o /dev/null -w "%{http_code}" \
-              -H "Accept: application/vnd.github.v3+json" \
-              -H "Authorization: token ${TOKEN}" \
-              "https://api.github.com/repos/${REPO}/actions/runs/${RUN_ID}")
-
-            if [ "$RESPONSE" = "204" ] || [ "$RESPONSE" = "200" ]; then
-              echo "Successfully deleted run ${RUN_ID}"
-            else
-              echo "Failed to delete run ${RUN_ID} (HTTP ${RESPONSE})"
-            fi
-          done
+    uses: ossfellow/.github/.github/workflows/actions-maintenance.yml@main
+    with:
+      retention_days: ${{ inputs.retention_days || 90 }}
+      workflows: ${{ inputs.workflows || 'all' }}
+    secrets:
+      token: ${{ secrets.GITHUB_TOKEN }}
