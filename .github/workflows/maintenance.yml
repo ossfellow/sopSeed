@@ -44,19 +44,26 @@ on:
 jobs:
   package-cleanup:
     if: inputs.run_package_cleanup || github.event_name == 'schedule'
-    uses: ossfellow/.github/.github/workflows/package-maintenance.yml@main
-    with:
-      packages: ${{ inputs.packages || 'sopseed,sopseed-chart' }}
-      keep_versions: ${{ inputs.keep_versions || 3 }}
-      artifact_type: ${{ inputs.artifact_type || 'container' }}
-    secrets:
-      token: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old package versions
+        uses: actions/delete-package-versions@v4
+        with:
+          package-name: ${{ inputs.packages || 'sopseed,sopseed-chart' }}
+          package-type: ${{ inputs.artifact_type || 'container' }}
+          min-versions-to-keep: ${{ inputs.keep_versions || 3 }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   actions-cleanup:
     if: inputs.run_actions_cleanup || github.event_name == 'schedule'
-    uses: ossfellow/.github/.github/workflows/actions-maintenance.yml@main
-    with:
-      retention_days: ${{ inputs.retention_days || 90 }}
-      workflows: ${{ inputs.workflows || 'all' }}
-    secrets:
-      token: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          retain_days: ${{ inputs.retention_days || 90 }}
+          keep_minimum_runs: 1
+          delete_workflow_by_state_pattern: "All"
+          delete_workflow_pattern: ${{ inputs.workflows || 'all' }}
