@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Delete old package versions
-        uses: actions/delete-package-versions@v4
+        uses: actions/delete-package-versions@v5
         with:
           package-name: ${{ inputs.packages || 'sopseed,sopseed-chart' }}
           package-type: ${{ inputs.artifact_type || 'container' }}
