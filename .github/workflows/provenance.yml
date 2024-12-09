@@ -43,7 +43,7 @@ jobs:
       #     config: ${{ env.GITHUB_WORKSPACE }}/.syft.yaml
 
       - name: Create the artifact Provenance
-        uses: actions/attest-sbom@v1
+        uses: actions/attest-sbom@v2
         with:
           subject-path: ./${{ inputs.path }}/${{ inputs.artifact }}
           sbom-path: sbom-${{ inputs.artifact }}-spdx.json
