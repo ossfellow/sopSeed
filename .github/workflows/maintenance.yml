@@ -19,8 +19,8 @@ on:
         required: false
       keep_versions:
         description: "Number of package versions to keep"
-        type: number
-        default: 3
+        type: string
+        default: '3'
         required: false
       artifact_type:
         description: "Type of artifact to clean"
@@ -32,13 +32,13 @@ on:
         required: false
       retention_days:
         description: "Days to retain action runs"
-        type: number
-        default: 90
-        required: false
-      workflows:
-        description: 'Workflows to clean (comma-separated or "all")'
         type: string
-        default: "all"
+        default: '90'
+        required: false
+      workflow_states:
+        description: 'Workflow states (e.g. deleted, disabled_fork, etc.) to clean (comma-separated or "ALL")'
+        type: string
+        default: "ALL"
         required: false
 
 jobs:
@@ -49,9 +49,9 @@ jobs:
       - name: Delete old package versions
         uses: actions/delete-package-versions@v5
         with:
-          package-name: ${{ inputs.packages || 'sopseed,sopseed-chart' }}
+          package-name: ${{ inputs.packages || 'sopseed,sopseed-chart/sopseed' }}
           package-type: ${{ inputs.artifact_type || 'container' }}
-          min-versions-to-keep: ${{ inputs.keep_versions || 3 }}
+          min-versions-to-keep: ${{ inputs.keep_versions || '3' }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
   actions-cleanup:
@@ -63,7 +63,6 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
-          retain_days: ${{ inputs.retention_days || 90 }}
-          keep_minimum_runs: 1
-          delete_workflow_by_state_pattern: "All"
-          delete_workflow_pattern: ${{ inputs.workflows || 'all' }}
+          retain_days: ${{ inputs.retention_days || '90' }}
+          keep_minimum_runs: '1'
+          delete_workflow_by_state_pattern: ${{ inputs.workflow_states || 'ALL' }}
