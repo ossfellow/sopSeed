@@ -47,6 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Delete old package versions
+        continue-on-error: true
         uses: actions/delete-package-versions@v5
         with:
           package-name: ${{ inputs.packages || 'sopseed,sopseed-chart/sopseed' }}
@@ -59,6 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Delete old workflow runs
+        continue-on-error: true
         uses: Mattraks/delete-workflow-runs@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
