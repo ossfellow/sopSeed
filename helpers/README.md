@@ -10,7 +10,7 @@ The sopSeed OCI image provides:
 
 * **Production Ready** - Sensible defaults for both interactive use and automation
 
-The sopSeed OCI images are signed and attested using Docker's SBOM and provenance features. The SBOM and provenance can be verified using Docker's built-in tools.
+The sopSeed OCI images are signed and attested using SLSA provenance and Sigstore/Cosign attestations. Provenance can be verified using Cosign.
 
 ## Interactive Usage Examples
 
@@ -72,9 +72,8 @@ docker run --rm -it -v /local/age/keys/store:/home/secops/age ghcr.io/ossfellow/
 
 ### Verify Image Authenticity
 
-To verify the authenticity of the image using Docker's SBOM and provenance features:
+To verify the authenticity of the image using SLSA provenance and Cosign:
 
 ```console
-docker sbom ghcr.io/ossfellow/sopseed:{version}
-docker trust inspect --pretty ghcr.io/ossfellow/sopseed:{version}
+cosign verify-attestation --type slsaprovenance ghcr.io/ossfellow/sopseed:{version}
 ```
