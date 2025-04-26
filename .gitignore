@@ -8,3 +8,4 @@ cosign.pub
 # Other files to ignore
 artifacthub-repo.yml
 **/*.tgz
+commit.txt

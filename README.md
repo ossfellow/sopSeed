@@ -13,7 +13,7 @@ sopSeed enhances the security and simplicity of encryption key setup in GitOps p
 
 *   **Minimalistic and Lightweight**: Ensures clean builds with [Aqua Security's trivy](https://github.com/aquasecurity/trivy) image vulnerability scanner.
 
-*   **Authenticity**: Guarantees the authenticity of OCI images using Docker's SBOM and provenance features.
+*   **Authenticity**: Guarantees the authenticity of OCI images using SLSA provenance and Sigstore/Cosign attestations.
 
 *   **Multi-Tenancy and Multi-Arch Support**: Supports multiple tenants and architectures.
 
@@ -58,11 +58,10 @@ You can pass the `global.sopsMasterPubKey` value to the helm chart installation 
 
 ### Verify Image Authenticity
 
-To verify the authenticity of the image using Docker's SBOM and provenance features:
+To verify the authenticity of the image using SLSA provenance and Cosign:
 
 ```console
-docker sbom ghcr.io/ossfellow/sopseed:{version}
-docker trust inspect --pretty ghcr.io/ossfellow/sopseed:{version}
+cosign verify-attestation --type slsaprovenance ghcr.io/ossfellow/sopseed:{version}
 ```
 
 ## Using the sopSeed OCI Image Directly
