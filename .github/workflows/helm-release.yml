@@ -146,11 +146,6 @@ jobs:
   provenance:
     name: Generate SLSA Provenance for Helm Chart
     needs: release
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      id-token: write
-      contents: write
     if: startsWith(github.ref, 'refs/tags/')
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     with:
